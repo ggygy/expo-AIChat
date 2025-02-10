@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import i18n from '@/i18n/i18n';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -10,6 +11,29 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const [TabsTitle, setTabsTitle] = useState({
+    index: i18n.t('tabs.home'),
+    explore: i18n.t('tabs.explore'),
+    settings: i18n.t('tabs.settings'),
+  });
+
+  useEffect(() => {
+    const updateTitles = () => {
+      setTabsTitle({
+        index: i18n.t('tabs.home'),
+        explore: i18n.t('tabs.explore'),
+        settings: i18n.t('tabs.settings'),
+      });
+    };
+
+    // 使用内置的 onChangeLocale 方法
+    i18n.onChange(updateTitles);
+
+    return () => {
+      // 清理监听器
+      i18n.onChange(updateTitles);
+    };
+  }, []);
 
   return (
     <Tabs
@@ -22,22 +46,36 @@ export default function TabLayout() {
           ios: {
             // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
+            height: 70,
           },
-          default: {},
+          default: {
+            height: 57,
+          },
         }),
+        tabBarLabelStyle: {
+          fontSize: 13,
+          fontWeight: '500',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: TabsTitle.index,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="home" color={color} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: TabsTitle.explore,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="explore" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: TabsTitle.settings,
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="settings" color={color} />,
         }}
       />
     </Tabs>

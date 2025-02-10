@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "expo-AIChat",
+    "name": "AIChat",
     "slug": "expo-AIChat",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.ggygy.AIChat",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -36,6 +37,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "f1c41e1d-cb1c-4a00-8958-a3b285681951"
+      }
+    },
+    "owner": "ggygy"
   }
 }
