@@ -60,6 +60,7 @@ export const Colors = {
         disabled: '#FF525280',
       },
     },
+    link: tintColorLight,
   },
   dark: {
     text: '#ECEDEE',
@@ -114,5 +115,6 @@ export const Colors = {
         disabled: '#FF525280',
       },
     },
+    link: tintColorDark,
   },
 };

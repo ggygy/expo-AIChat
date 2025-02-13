@@ -145,15 +145,18 @@ export const Input = forwardRef<TextInput, InputProps>(
         <View style={[styles.inputWrapper, dynamicStyles.inputWrapper, inputWrapperStyle]}>
           <TextInput
             ref={ref}
-            style={[dynamicStyles.input, style]}
+            style={[
+              styles.input,
+              {
+                fontSize: combinedStyleProps.fontSize,
+                color: inputColors.text,
+                backgroundColor: inputColors.background,
+              },
+              style
+            ]}
             placeholderTextColor={inputColors.placeholder}
             selectionColor={inputColors.tint}
             secureTextEntry={secureTextEntry && !isPasswordVisible}
-            {...Platform.select({
-              ios: {
-                paddingVertical: 12,
-              },
-            })}
             {...props}
           />
           {renderRightIcon()}
@@ -173,29 +176,35 @@ export const Input = forwardRef<TextInput, InputProps>(
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12, // 减小底部间距
+    marginBottom: 12,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 6, // 减小标签和输入框的间距
+    marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     borderWidth: 1,
     overflow: 'hidden',
+    minHeight: 40,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 0,
+    paddingHorizontal: 12,
+    height: '100%',
     fontSize: 15,
-    textAlignVertical: 'center',
+    minWidth: 50,
     ...Platform.select({
       ios: {
-        lineHeight: 20,
+        paddingVertical: 0,
+        lineHeight: undefined,
+      },
+      android: {
+        paddingVertical: 4,
+        textAlignVertical: 'center',
+        includeFontPadding: false,
       },
     }),
   },

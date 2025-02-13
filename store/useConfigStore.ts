@@ -1,29 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ModelProvider, MODEL_PROVIDERS } from '@/constants/ModelProviders';
+import { MODEL_PROVIDERS, ModelInfo } from '@/constants/ModelProviders';
 
 export interface ProviderConfig {
   id: string;
   apiKey: string;
   baseUrl: string;
   isActive: boolean;
-  enabledModels: string[];
-  customModels: Array<{
-    id: string;
-    name: string;
-  }>;
+  enabledModels: string[];  // 使用单独的数组来追踪启用状态
+  customModels: ModelInfo[];  // 直接使用 ModelInfo 接口
 }
 
 interface ConfigStore {
   providers: ProviderConfig[];
-  activeProviderId: string | null;
+  activeProviderId: string | null;  // 改回 activeProviderId
   addProvider: (provider: Omit<ProviderConfig, 'enabledModels' | 'customModels'>) => void;
   updateProvider: (id: string, updates: Partial<ProviderConfig>) => void;
   deleteProvider: (id: string) => void;
   setActiveProvider: (id: string) => void;
   toggleModel: (providerId: string, modelId: string) => void;
-  addCustomModel: (providerId: string, model: { id: string; name: string }) => void;
+  addCustomModel: (providerId: string, model: ModelInfo) => void;
   deleteCustomModel: (providerId: string, modelId: string) => void;
 }
 
@@ -52,13 +49,21 @@ export const useConfigStore = create<ConfigStore>()(
         providers: state.providers.filter(provider => provider.id !== id),
         activeProviderId: state.activeProviderId === id ? null : state.activeProviderId
       })),
-      setActiveProvider: (id) => set((state) => ({
-        providers: state.providers.map(provider => ({
-          ...provider,
-          isActive: provider.id === id
-        })),
-        activeProviderId: id
-      })),
+      setActiveProvider: (id) => set((state) => {
+        const provider = state.providers.find(p => p.id === id);
+        if (!provider) return state;
+
+        const newIsActive = !provider.isActive;
+        return {
+          providers: state.providers.map(p => ({
+            ...p,
+            isActive: p.id === id ? newIsActive : p.isActive
+          })),
+          activeProviderId: provider.id === state.activeProviderId && !newIsActive 
+            ? null 
+            : (newIsActive ? id : state.activeProviderId)
+        };
+      }),
       toggleModel: (providerId, modelId) => set((state) => ({
         providers: state.providers.map(provider => {
           if (provider.id !== providerId) return provider;
@@ -68,7 +73,7 @@ export const useConfigStore = create<ConfigStore>()(
           return { ...provider, enabledModels };
         })
       })),
-      addCustomModel: (providerId, model) => set((state) => ({
+      addCustomModel: (providerId, model: ModelInfo) => set((state) => ({
         providers: state.providers.map(provider => 
           provider.id === providerId
             ? {
@@ -97,3 +102,10 @@ export const useConfigStore = create<ConfigStore>()(
     }
   )
 );
+
+export const getCurrentProvider = (state: ConfigStore) => {
+  const activeProvider = state.providers.find(p => p.id === state.activeProviderId);
+  if (activeProvider?.isActive) return activeProvider;
+  
+  return state.providers.find(p => p.isActive) || null;
+};

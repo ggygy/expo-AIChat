@@ -71,6 +71,19 @@ export const translations = {
       modelIdPlaceholder: 'Enter model ID',
       confirm: 'Confirm',
       cancel: 'Cancel',
+      useCurrent: 'Use Current',
+      getApiKey: 'Get API Key',
+      currentInUse: 'Current',
+      selectModelTypes: 'Select Model Types',
+      modelId: 'Model ID',
+      modelTypes: 'Model Types',
+      modelType: 'Model Type',
+    },
+    modelTypes: {
+      chat: 'Chat',
+      image: 'Image',
+      embedding: 'Embedding',
+      inference: 'Inference'
     },
   },
   zh: {
@@ -145,6 +158,19 @@ export const translations = {
       modelIdPlaceholder: '输入模型 ID',
       confirm: '确认',
       cancel: '取消',
+      useCurrent: '设为当前',
+      getApiKey: '获取API密钥',
+      currentInUse: '当前使用',
+      selectModelTypes: '选择模型类型',
+      modelId: '模型 ID',
+      modelTypes: '模型类型',
+      modelType: '模型类型',
+    },
+    modelTypes: {
+      chat: '对话',
+      image: '图像',
+      embedding: '嵌入',
+      inference: '推理'
     },
   },
 };

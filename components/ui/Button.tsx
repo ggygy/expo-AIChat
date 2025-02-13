@@ -106,6 +106,11 @@ export const Button: React.FC<ButtonProps> = ({
         borderWidth: 1,
         borderColor: buttonColors.outline.border,
         color: buttonColors.outline.text,
+        shadowColor: 'transparent',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0,
+        shadowRadius: 0,
+        elevation: 0,
       },
       ghost: {
         backgroundColor: 'transparent',
@@ -190,9 +195,9 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 2,
       },
       android: {
         elevation: 2,

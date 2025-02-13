@@ -1,11 +1,12 @@
 import React, { memo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
 import { ProviderConfig } from '@/store/useConfigStore';
 import { ModelProvider } from '@/constants/ModelProviders';
 import i18n from '@/i18n/i18n';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 interface Props {
   provider: ProviderConfig;
@@ -21,9 +22,29 @@ function ProviderCard({
   onToggleActive,
 }: Props) {
   const backgroundColor = useThemeColor({}, 'settingItemBackground');
+  const linkColor = useThemeColor({}, 'link');
+
+  const handleOpenLink = async () => {
+    if (providerInfo.apiKeyUrl) {
+      await Linking.openURL(providerInfo.apiKeyUrl);
+    }
+  };
+
   return (
     <View style={[styles.providerCard, { backgroundColor }]}>
-      <ThemedText style={styles.providerName}>{providerInfo.name}</ThemedText>
+      <View style={styles.headerRow}>
+        <ThemedText style={styles.providerName}>
+          {providerInfo.name}
+        </ThemedText>
+        {providerInfo.apiKeyUrl && (
+          <TouchableOpacity onPress={handleOpenLink} style={styles.linkButton} activeOpacity={0.6}>
+            <ThemedText style={[styles.description, { color: linkColor }]}>
+              {i18n.t('config.getApiKey')}
+            </ThemedText>
+            <IconSymbol name="chevron-right" size={16} color={linkColor} />
+          </TouchableOpacity>
+        )}
+      </View>
       <View style={styles.buttonRow}>
         <Button
           onPress={onConfigureModels}
@@ -54,10 +75,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   providerName: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+  },
+  description: {
+    fontSize: 14,
+    marginRight: 2,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   buttonRow: {
     flexDirection: 'row',

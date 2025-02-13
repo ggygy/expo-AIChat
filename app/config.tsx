@@ -58,7 +58,10 @@ const AIConfigScreen = () => {
   return (
     <>
       <Stack.Screen
+        name="config"
         options={{
+          animation: 'slide_from_right',
+          presentation: 'card',
           title: i18n.t('settings.aiConfig.title'),
         }}
       />

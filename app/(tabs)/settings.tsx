@@ -43,7 +43,7 @@ export default function SettingsScreen() {
       id: 'aiConfig',
       type: 'link' as const,
       title: i18n.t('settings.aiConfig.title'),
-      value: i18n.t('settings.aiConfig.description'),
+      value: i18n.t('settings.aiConfig.description') as string,
       onPress: () => {
         router.push("/config");
       },
@@ -69,17 +69,23 @@ export default function SettingsScreen() {
     },
   ], [currentLanguage, themeMode, switchValue]); // 添加 switchValue 到依赖数组
 
+  // 使用 useMemo 缓存主题值
+  const backgroundStyle = useMemo(() => ({
+    backgroundColor: Colors[themeMode === 'dark' ? 'dark' : 'light'].background
+  }), [themeMode]);
+
   return (
     <>
       <Stack.Screen
         options={{
           title: i18n.t('settings.title'),
+          animation: 'fade',
         }}
       />
       <SafeAreaView
         style={[
           styles.safeArea,
-          { backgroundColor: Colors[themeMode === 'dark' ? 'dark' : 'light'].background }
+          backgroundStyle
         ]}
         edges={['top']}
       >

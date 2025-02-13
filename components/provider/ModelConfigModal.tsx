@@ -1,13 +1,18 @@
 import React, { memo, useState } from 'react';
-import { View, StyleSheet, Modal, ScrollView, SafeAreaView, Platform, StatusBar, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 import { useConfigStore } from '@/store/useConfigStore';
 import { ThemedText } from '@/components/ThemedText';
-import i18n from '@/i18n/i18n';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { ModelType } from '@/constants/ModelTypes';
+import { AddModelForm } from './AddModelForm';
+import ModelTypeSelector from './ModelTypeSelector';
+import ModelItem from './ModelItem';
+import i18n from '@/i18n/i18n';
+import AddModelModal from './AddModelModal';
 
 interface Props {
   providerId: string;
@@ -17,81 +22,18 @@ interface Props {
 
 function ModelConfigModal({ providerId, visible, onClose }: Props) {
   const { providers, updateProvider, toggleModel, addCustomModel, deleteCustomModel } = useConfigStore();
-  const [newModelName, setNewModelName] = useState('');
-  const [newModelId, setNewModelId] = useState('');
-  const [showAddModel, setShowAddModel] = useState(false);
+  const [showAddModelModal, setShowAddModelModal] = useState(false);
   const provider = MODEL_PROVIDERS.find(p => p.id === providerId);
   const config = providers.find(p => p.id === providerId);
   const backgroundColor = useThemeColor({}, 'settingItemBackground');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({}, 'input').border;
 
-  const renderModels = () => {
-    const availableModels = provider?.availableModels || [];
-    const customModels = config?.customModels || [];
-
-    return (
-      <>
-        {/* 内置模型 */}
-        {availableModels.map(model => (
-          <View key={model.id} style={styles.modelItem}>
-            <ThemedText style={styles.modelName}>{model.name}</ThemedText>
-            <Button
-              onPress={() => toggleModel(providerId, model.id)}
-              variant={config?.enabledModels.includes(model.id) ? 'primary' : 'secondary'}
-              size="small"
-              style={styles.toggleButton}
-            >
-              {config?.enabledModels.includes(model.id) 
-                ? i18n.t('config.enabled')
-                : i18n.t('config.disabled')}
-            </Button>
-          </View>
-        ))}
-
-        {/* 自定义模型 */}
-        {customModels.map(model => (
-          <View key={model.id} style={styles.modelItem}>
-            <ThemedText style={styles.modelName}>{model.name}</ThemedText>
-            <View style={styles.modelActions}>
-              <Button
-                onPress={() => toggleModel(providerId, model.id)}
-                variant={config?.enabledModels.includes(model.id) ? 'primary' : 'secondary'}
-                size="small"
-                style={styles.toggleButton}
-              >
-                {config?.enabledModels.includes(model.id) 
-                  ? i18n.t('config.enabled')
-                  : i18n.t('config.disabled')}
-              </Button>
-              <Button
-                onPress={() => handleDeleteModel(model.id)}
-                variant="danger"
-                size="small"
-                style={styles.deleteButton}
-              >
-                {i18n.t('config.deleteModel')}
-              </Button>
-            </View>
-          </View>
-        ))}
-      </>
-    );
-  };
-
-  // 提前返回 null 如果数据不完整
   if (!provider || !config || !visible) return null;
 
-  const handleAddModel = () => {
-    if (!newModelId || !newModelName) return;
-    
-    addCustomModel(providerId, {
-      id: newModelId,
-      name: newModelName
-    });
-    setNewModelId('');
-    setNewModelName('');
-    setShowAddModel(false);
+  const handleAddModel = (model: { id: string; name: string; types: ModelType[] }) => {
+    addCustomModel(providerId, model);
+    setShowAddModelModal(false);
   };
 
   const handleDeleteModel = (modelId: string) => {
@@ -121,82 +63,77 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
           <TouchableOpacity style={styles.iconContainer} onPress={onClose}>
             <IconSymbol name="arrow-back" size={28} color={textColor} />
           </TouchableOpacity>
-          <ThemedText style={styles.title}>
-            {provider.name}
-          </ThemedText>
+          <ThemedText style={styles.title}>{provider.name}</ThemedText>
           <View style={styles.backButton} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <ThemedText style={styles.sectionTitle}>
-            {i18n.t('config.baseUrl')}
-          </ThemedText>
-          <Input
-            value={config.baseUrl}
-            onChangeText={(text) => updateProvider(providerId, { baseUrl: text })}
-            placeholder={i18n.t('config.baseUrlPlaceholder')}
-            style={styles.apiInput}
-          />
+          {/* API 配置部分 */}
+          <View style={styles.apiConfig}>
+            <ThemedText style={styles.sectionTitle}>{i18n.t('config.baseUrl')}</ThemedText>
+            <Input
+              value={config.baseUrl}
+              onChangeText={(text) => updateProvider(providerId, { baseUrl: text })}
+              placeholder={i18n.t('config.baseUrlPlaceholder')}
+              style={styles.apiInput}
+            />
 
-          <ThemedText style={styles.sectionTitle}>
-            {i18n.t('config.apiKey')}
-          </ThemedText>
-          <Input
-            value={config.apiKey}
-            onChangeText={(text) => updateProvider(providerId, { apiKey: text })}
-            placeholder={i18n.t('config.apiKeyPlaceholder')}
-            secureTextEntry
-            style={styles.apiInput}
-          />
-
-          <View style={styles.modelListHeader}>
-            <ThemedText style={styles.sectionTitle}>
-              {i18n.t('config.modelList')}
-            </ThemedText>
-            <Button
-              onPress={() => setShowAddModel(true)}
-              size="small"
-              variant="outline"
-            >
-              {i18n.t('config.addModel')}
-            </Button>
+            <ThemedText style={styles.sectionTitle}>{i18n.t('config.apiKey')}</ThemedText>
+            <Input
+              value={config.apiKey}
+              onChangeText={(text) => updateProvider(providerId, { apiKey: text })}
+              placeholder={i18n.t('config.apiKeyPlaceholder')}
+              secureTextEntry
+              style={styles.apiInput}
+            />
           </View>
 
-          {showAddModel && (
-            <View style={styles.addModelForm}>
-              <Input
-                value={newModelName}
-                onChangeText={setNewModelName}
-                placeholder={i18n.t('config.modelNamePlaceholder')}
-                style={styles.input}
-              />
-              <Input
-                value={newModelId}
-                onChangeText={setNewModelId}
-                placeholder={i18n.t('config.modelIdPlaceholder')}
-                style={styles.input}
-              />
-              <View style={styles.addModelButtons}>
-                <Button
-                  onPress={() => setShowAddModel(false)}
-                  variant="secondary"
-                  size="small"
-                >
-                  {i18n.t('common.cancel')}
-                </Button>
-                <Button
-                  onPress={handleAddModel}
-                  variant="primary"
-                  size="small"
-                >
-                  {i18n.t('config.confirm')}
-                </Button>
-              </View>
-            </View>
-          )}
+          {/* 模型列表部分 */}
+          <ThemedText style={styles.sectionTitle}>{i18n.t('config.modelList')}</ThemedText>
+          
+          {/* 内置模型 */}
+          {provider.availableModels.map(model => (
+            <ModelItem
+              key={model.id}
+              model={model}
+              isEnabled={config.enabledModels.includes(model.id)}
+              onToggle={() => toggleModel(providerId, model.id)}
+            />
+          ))}
 
-          {renderModels()}
+          {/* 自定义模型 */}
+          {config.customModels.map(model => (
+            <ModelItem
+              key={model.id}
+              model={model}
+              isEnabled={config.enabledModels.includes(model.id)}
+              onToggle={() => toggleModel(providerId, model.id)}
+              onDelete={() => handleDeleteModel(model.id)}
+              isCustom
+            />
+          ))}
+
+          {/* 添加模型按钮 */}
+          <View style={styles.addModelSection}>
+            <Button
+              onPress={() => setShowAddModelModal(true)}
+              size="medium"
+              variant="primary"
+              style={styles.addModelButton}
+            >
+              {i18n.t('config.addNewModel')}
+            </Button>
+          </View>
         </ScrollView>
+
+        <AddModelModal 
+          visible={showAddModelModal}
+          onClose={() => setShowAddModelModal(false)}
+          onAdd={(model) => {
+            handleAddModel(model);
+            setShowAddModelModal(false);
+          }}
+        />
       </SafeAreaView>
     </Modal>
   );
@@ -217,7 +154,6 @@ const styles = StyleSheet.create({
   backButton: {
     minWidth: 48,
     height: 48,
-    padding: 0,
   },
   title: {
     fontSize: 18,
@@ -233,54 +169,30 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
+  apiConfig: {
+    marginBottom: 20,
+  },
   apiInput: {
     fontSize: 16,
   },
-  modelItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modelName: {
-    fontSize: 16,
-  },
-  toggleButton: {
-    minWidth: 100,
-  },
   iconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 8,
   },
   input: {
     marginBottom: 16,
   },
-  modelListHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  addModelSection: {
+    marginVertical: 20,
+    paddingTop: 20,
+  },
+  addModelButton: {
+    width: '100%',
   },
   addModelForm: {
+    marginTop: 16,
     padding: 16,
-    marginBottom: 16,
     backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 8,
-  },
-  addModelButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  modelActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  deleteButton: {
-    minWidth: undefined,
   },
 });
 

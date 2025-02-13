@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -17,19 +17,35 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  // 监听语言变化
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const themeMode = useThemeStore((state) => state.themeMode);
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  // 根据 themeMode 确定当前主题
+  const currentTheme = useMemo(() => {
+    if (themeMode === 'system') {
+      return colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+    }
+    return themeMode === 'dark' ? DarkTheme : DefaultTheme;
+  }, [themeMode, colorScheme]);
+
+  // 导航配置
+  const screenOptions = useMemo(() => ({
+    headerShown: true,
+    animationDuration: 200,
+    headerStyle: {
+      backgroundColor: currentTheme.colors.background,
+    },
+    headerTintColor: currentTheme.colors.text,
+  }), [currentTheme]);
+
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
     }
-    // 可以在这里添加语言变化监听
-  }, [loaded, currentLanguage, themeMode]); // 添加 themeMode 依赖
+  }, [loaded, currentLanguage, themeMode]);
 
   if (!loaded) {
     return null;
@@ -37,12 +53,22 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
+      <ThemeProvider value={currentTheme}>
+        <Stack screenOptions={screenOptions}>
+          <Stack.Screen 
+            name="(tabs)" 
+            options={{ 
+              headerShown: false,
+            }} 
+          />
+          <Stack.Screen 
+            name="config"
+            options={{
+              title: i18n.t('settings.aiConfig.title'),
+            }}
+          />
         </Stack>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <StatusBar style={currentTheme === DarkTheme ? 'light' : 'dark'} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
