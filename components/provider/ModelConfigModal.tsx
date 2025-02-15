@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -13,6 +13,7 @@ import ModelTypeSelector from './ModelTypeSelector';
 import ModelItem from './ModelItem';
 import i18n from '@/i18n/i18n';
 import AddModelModal from './AddModelModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Props {
   providerId: string;
@@ -23,9 +24,10 @@ interface Props {
 function ModelConfigModal({ providerId, visible, onClose }: Props) {
   const { providers, updateProvider, toggleModel, addCustomModel, deleteCustomModel } = useConfigStore();
   const [showAddModelModal, setShowAddModelModal] = useState(false);
+  const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
   const provider = MODEL_PROVIDERS.find(p => p.id === providerId);
   const config = providers.find(p => p.id === providerId);
-  const backgroundColor = useThemeColor({}, 'settingItemBackground');
+  const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({}, 'input').border;
 
@@ -37,18 +39,14 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
   };
 
   const handleDeleteModel = (modelId: string) => {
-    Alert.alert(
-      i18n.t('config.deleteModel'),
-      i18n.t('common.confirm'),
-      [
-        { text: i18n.t('common.cancel'), style: 'cancel' },
-        { 
-          text: i18n.t('common.confirm'),
-          style: 'destructive',
-          onPress: () => deleteCustomModel(providerId, modelId)
-        }
-      ]
-    );
+    setDeleteModelId(modelId);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteModelId) {
+      deleteCustomModel(providerId, deleteModelId);
+      setDeleteModelId(null);
+    }
   };
 
   return (
@@ -133,6 +131,15 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
             handleAddModel(model);
             setShowAddModelModal(false);
           }}
+        />
+
+        <ConfirmDialog
+          visible={!!deleteModelId}
+          title={i18n.t('config.deleteModel')}
+          message={i18n.t('common.confirm')}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteModelId(null)}
+          variant="danger"
         />
       </SafeAreaView>
     </Modal>

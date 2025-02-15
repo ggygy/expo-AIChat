@@ -1,3 +1,4 @@
+import React, { memo, useMemo } from 'react';
 import { TouchableOpacity, StyleSheet, FlatList, View, Switch } from 'react-native';
 import type { ViewStyle } from 'react-native';
 import { ThemedView } from './ThemedView';
@@ -6,7 +7,6 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheet } from './BottomSheet';
 import { useState, useCallback } from 'react';
-import React from 'react';
 
 // 基础设置项接口
 interface BaseItem {
@@ -49,8 +49,7 @@ interface ItemProps {
   isLast: boolean
 }
 
-// 下拉选择组件
-const SelectControl = ({ currentValue, options, onSelect, title }: Partial<SelectItem>) => {
+const SelectControl = memo(({ currentValue, options, onSelect, title }: Partial<SelectItem>) => {
   const [isOpen, setIsOpen] = useState(false);
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
@@ -115,10 +114,9 @@ const SelectControl = ({ currentValue, options, onSelect, title }: Partial<Selec
       </BottomSheet>
     </>
   );
-};
+});
 
-// 链接类型组件
-const LinkControl = ({ value, onPress }: Partial<LinkItem>) => {
+const LinkControl = memo(({ value, onPress }: Partial<LinkItem>) => {
   const textColor = useThemeColor({}, 'text');
   
   return (
@@ -140,47 +138,60 @@ const LinkControl = ({ value, onPress }: Partial<LinkItem>) => {
       />
     </TouchableOpacity>
   );
-};
+});
 
-const Item = (props: ItemProps) => {
-  const { itemData, isLast } = props;
+const Item = memo(({ itemData, isLast }: ItemProps) => {
   const backgroundColor = useThemeColor({}, 'settingItemBackground');
   const tintColor = useThemeColor({}, 'tint');
 
-  const renderControl = () => {
-    switch (itemData.type) {
-      case 'switch':
-        return (
-          <View style={styles.switchContainer}>
-            <Switch
-              value={itemData.value}
-              onValueChange={itemData.onValueChange}
-              trackColor={{ false: '#E1E3E5', true: tintColor }}
-              thumbColor="#FFFFFF"
-              style={styles.switch}
-              ios_backgroundColor="#E1E3E5"
-            />
-          </View>
-        );
-      case 'select':
-        return <SelectControl {...itemData} />;
-      case 'link':
-        return <LinkControl {...itemData} />;
-      default:
-        return null;
-    }
-  };
+  const content = useMemo(() => {
+    const renderControl = () => {
+      switch (itemData.type) {
+        case 'switch':
+          return (
+            <View style={styles.switchContainer}>
+              <Switch
+                value={itemData.value}
+                onValueChange={itemData.onValueChange}
+                trackColor={{ false: '#E1E3E5', true: tintColor }}
+                thumbColor="#FFFFFF"
+                style={styles.switch}
+                ios_backgroundColor="#E1E3E5"
+              />
+            </View>
+          );
+        case 'select':
+          return <SelectControl {...itemData} />;
+        case 'link':
+          return <LinkControl {...itemData} />;
+        default:
+          return null;
+      }
+    };
 
-  return (
-    <View style={[styles.item, { backgroundColor }, isLast && styles.lastItem]}>
-      <ThemedText style={styles.title} type="defaultSemiBold">{itemData.title}</ThemedText>
-      {renderControl()}
-    </View>
-  );
-};
+    return (
+      <View style={[styles.item, { backgroundColor }, isLast && styles.lastItem]}>
+        <ThemedText 
+          style={styles.title} 
+          type="defaultSemiBold"
+          numberOfLines={1}
+        >
+          {itemData.title}
+        </ThemedText>
+        {renderControl()}
+      </View>
+    );
+  }, [itemData, isLast, backgroundColor, tintColor]);
+
+  return content;
+});
 
 export function SettingList({ data, style }: SettingListProps) {
   const separatorColor = useThemeColor({}, 'icon');
+
+  const renderSeparator = useMemo(() => (
+    <ThemedView style={[styles.separator, { backgroundColor: separatorColor }]} />
+  ), [separatorColor]);
 
   return (
     <ThemedView style={[styles.container, style]}>
@@ -188,12 +199,17 @@ export function SettingList({ data, style }: SettingListProps) {
         data={data}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
-          <Item itemData = {item} isLast={index === data.length - 1} />
+          <Item 
+            itemData={item} 
+            isLast={index === data.length - 1}
+          />
         )}
         scrollEnabled={false}
-        ItemSeparatorComponent={() => (
-          <ThemedView style={[styles.separator, { backgroundColor: separatorColor }]} />
-        )}
+        removeClippedSubviews={false}
+        initialNumToRender={data.length}
+        ItemSeparatorComponent={() => renderSeparator}
+        windowSize={2}
+        maxToRenderPerBatch={data.length}
       />
     </ThemedView>
   );
@@ -219,17 +235,22 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
+    flex: 1,
+    marginRight: 8,
   },
   valueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: '30%',
+    maxWidth: '60%',
   },
   value: {
     fontSize: 16,
     opacity: 0.8,
   },
   icon: {
-    marginLeft: 8,
+    marginLeft: 3,
     marginTop: 2,
     opacity: 0.3,
   },

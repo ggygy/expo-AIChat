@@ -12,13 +12,14 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 const AIConfigScreen = () => {
   const backgroundColor = useThemeColor({}, 'background');
+  
   const { providers, addProvider, setActiveProvider } = useConfigStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const availableProviders = MODEL_PROVIDERS.filter(
     p => !providers.some(cp => cp.id === p.id)
   );
-
+ 
   const renderProvider = useCallback(({ item }: ListRenderItemInfo<ProviderConfig>) => {
     const providerInfo = MODEL_PROVIDERS.find(p => p.id === item.id);
     if (!providerInfo) return null;
@@ -57,14 +58,6 @@ const AIConfigScreen = () => {
 
   return (
     <>
-      <Stack.Screen
-        name="config"
-        options={{
-          animation: 'slide_from_right',
-          presentation: 'card',
-          title: i18n.t('settings.aiConfig.title'),
-        }}
-      />
       <FlatList
         style={[styles.container, { backgroundColor }]}
         data={providers}
@@ -85,12 +78,13 @@ const AIConfigScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginVertical: 16,
+    marginVertical: 8,
   },
 });
 

@@ -33,6 +33,9 @@ interface ButtonProps extends TouchableOpacityProps {
   style?: StyleProp<ViewStyle>;
   textStyle?: TextStyle;
   children: React.ReactNode;
+  onLongPress?: () => void;
+  delayLongPress?: number;
+  longPressHaptic?: boolean;  // 长按触觉反馈
 }
 
 // 修改样式类型定义
@@ -69,6 +72,9 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   children,
   onPress,
+  onLongPress,
+  delayLongPress = 500,
+  longPressHaptic = true,
   ...props
 }) => {
   const colorScheme = useColorScheme();
@@ -88,6 +94,13 @@ export const Button: React.FC<ButtonProps> = ({
     },
     [onPress, hapticFeedback, variant]
   );
+
+  const handleLongPress = React.useCallback(async () => {
+    if (longPressHaptic && Platform.OS === 'ios') {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    onLongPress?.();
+  }, [onLongPress, longPressHaptic]);
 
   const getVariantStyles = (): ViewStyle & { color?: string } => {
     const variantStyles = {
@@ -168,6 +181,8 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       activeOpacity={Platform.select({ ios: 0.6, android: 0.7 })}
       onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={delayLongPress}
       {...props}
     >
       {isLoading ? (

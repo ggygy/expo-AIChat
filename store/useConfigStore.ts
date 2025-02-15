@@ -22,11 +22,12 @@ interface ConfigStore {
   toggleModel: (providerId: string, modelId: string) => void;
   addCustomModel: (providerId: string, model: ModelInfo) => void;
   deleteCustomModel: (providerId: string, modelId: string) => void;
+  refreshProviders: () => void;
 }
 
 export const useConfigStore = create<ConfigStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       providers: [],
       activeProviderId: null,
       addProvider: (provider) => set((state) => ({
@@ -95,10 +96,24 @@ export const useConfigStore = create<ConfigStore>()(
             : provider
         )
       })),
+      refreshProviders: () => {
+        // 优化刷新逻辑
+        const currentState = get();
+        set({
+          providers: [...currentState.providers],
+          activeProviderId: currentState.activeProviderId
+        });
+      },
     }),
     {
       name: 'config-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        // 存储恢复后立即触发一次刷新
+        if (state) {
+          state.refreshProviders();
+        }
+      },
     }
   )
 );

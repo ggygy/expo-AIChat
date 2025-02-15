@@ -9,11 +9,14 @@ import { Colors } from '@/constants/Colors';
 import { useMemo, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import React from 'react';
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
   const { currentLanguage, setLanguage } = useLanguageStore();
   const { themeMode, setThemeMode } = useThemeStore();
   const [switchValue, setSwitchValue] = useState(false);
+
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
 
   const settingsData = useMemo((): ListItem[] => [
     {
@@ -45,17 +48,16 @@ export default function SettingsScreen() {
       title: i18n.t('settings.aiConfig.title'),
       value: i18n.t('settings.aiConfig.description') as string,
       onPress: () => {
-        router.push("/config");
+        router.navigate("/config");
       },
     },
     {
       id: 'version',
       type: 'link' as const,
       title: i18n.t('settings.about.version'),
-      value: 'v1.0.0',
+      value: `v${appVersion}`,
       onPress: () => {
-        // 导航到关于页面
-
+        router.navigate('/version');
       },
     },
     {
@@ -67,21 +69,14 @@ export default function SettingsScreen() {
         setSwitchValue(value);
       },
     },
-  ], [currentLanguage, themeMode, switchValue]); // 添加 switchValue 到依赖数组
+  ], [currentLanguage, themeMode, switchValue, appVersion]);
 
-  // 使用 useMemo 缓存主题值
   const backgroundStyle = useMemo(() => ({
     backgroundColor: Colors[themeMode === 'dark' ? 'dark' : 'light'].background
   }), [themeMode]);
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: i18n.t('settings.title'),
-          animation: 'fade',
-        }}
-      />
       <SafeAreaView
         style={[
           styles.safeArea,

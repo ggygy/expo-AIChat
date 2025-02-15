@@ -73,13 +73,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   name: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 3,
     marginTop: 4,
   },
   actions: {
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   deleteButton: {
-    minWidth: 60,
+    minWidth: 80,
   },
 });
 

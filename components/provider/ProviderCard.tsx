@@ -50,12 +50,17 @@ function ProviderCard({
           onPress={onConfigureModels}
           style={styles.configButton}
           variant="secondary"
+          hapticFeedback={true}
+          activeOpacity={0.7}
         >
           {i18n.t('config.configureModels')}
         </Button>
         <Button
           onPress={onToggleActive}
           style={[styles.button, provider.isActive && styles.activeButton]}
+          variant={'primary'}
+          hapticFeedback={true}
+          activeOpacity={0.7}
         >
           {provider.isActive ? i18n.t('config.active') : i18n.t('config.activate')}
         </Button>
@@ -97,14 +102,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 12,
-  },
-  configButton: {
-    flex: 1,
-    marginRight: 8,
+    gap: 12,
   },
   button: {
     flex: 1,
-    marginLeft: 8,
+    minHeight: 40,
+    
+  },
+  configButton: {
+    flex: 1,
+    minHeight: 40,
   },
   activeButton: {
     backgroundColor: '#4CAF50',

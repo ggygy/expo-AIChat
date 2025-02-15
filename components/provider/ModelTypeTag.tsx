@@ -25,13 +25,12 @@ ModelTypeTag.displayName = 'ModelTypeTag';
 
 const styles = StyleSheet.create({
   tag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 0,
     borderRadius: 4,
-    marginRight: 4,
   },
   text: {
-    fontSize: 12, 
+    fontSize: 11, 
   },
 });
 

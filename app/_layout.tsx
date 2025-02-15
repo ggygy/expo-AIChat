@@ -11,6 +11,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import i18n from '@/i18n/i18n';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { useThemeStore } from '@/store/useThemeStore';
+import { ThemedView } from '@/components/ThemedView';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -34,11 +35,18 @@ export default function RootLayout() {
   // 导航配置
   const screenOptions = useMemo(() => ({
     headerShown: true,
-    animationDuration: 200,
+    animationDuration: 300,
     headerStyle: {
       backgroundColor: currentTheme.colors.background,
     },
     headerTintColor: currentTheme.colors.text,
+    cardStyle: {
+      backgroundColor: currentTheme.colors.background,
+      flex: 1
+    },
+    contentStyle: {
+      backgroundColor: 'transparent'
+    }
   }), [currentTheme]);
 
   useEffect(() => {
@@ -54,21 +62,31 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={currentTheme}>
-        <Stack screenOptions={screenOptions}>
-          <Stack.Screen 
-            name="(tabs)" 
-            options={{ 
-              headerShown: false,
-            }} 
-          />
-          <Stack.Screen 
-            name="config"
-            options={{
-              title: i18n.t('settings.aiConfig.title'),
-            }}
-          />
-        </Stack>
-        <StatusBar style={currentTheme === DarkTheme ? 'light' : 'dark'} />
+        <ThemedView style={{ flex: 1 }}>
+          <Stack screenOptions={screenOptions}>
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="config"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
+            <Stack.Screen
+              name="version"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.about.version'),
+              }}
+            />
+          </Stack>
+          <StatusBar style={currentTheme === DarkTheme ? 'light' : 'dark'} />
+        </ThemedView>
       </ThemeProvider>
     </SafeAreaProvider>
   );

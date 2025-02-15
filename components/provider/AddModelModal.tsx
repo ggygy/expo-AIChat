@@ -14,7 +14,7 @@ interface Props {
 }
 
 const AddModelModal = ({ visible, onClose, onAdd }: Props) => {
-  const backgroundColor = useThemeColor({}, 'settingItemBackground');
+  const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({}, 'input').border;
 
