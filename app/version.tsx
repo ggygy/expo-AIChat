@@ -1,15 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Image, View, Linking } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import i18n from '@/i18n/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import Toast from 'react-native-toast-message';
 
 const VERSION = Constants.expoConfig?.version || '1.0.0';
 const BUILD_NUMBER = Constants.expoConfig?.ios?.buildNumber || '1';
 
 export default function VersionScreen() {
+
+    useEffect(() => {
+        Toast.show({
+            type: 'error',
+            text1: i18n.t('config.apiKey') + '/' + i18n.t('config.baseUrl') + i18n.t('common.error'),
+          });
+    }, []);
+
     return (
         <ThemedView style={styles.container}>
             <View style={styles.header}>

@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useMemo } from 'react';
 import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,12 +8,12 @@ import { useConfigStore } from '@/store/useConfigStore';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ModelType } from '@/constants/ModelTypes';
-import { AddModelForm } from './AddModelForm';
-import ModelTypeSelector from './ModelTypeSelector';
 import ModelItem from './ModelItem';
 import i18n from '@/i18n/i18n';
 import AddModelModal from './AddModelModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import Toast from 'react-native-toast-message';
+import { Picker } from '@/components/ui/Picker';
 
 interface Props {
   providerId: string;
@@ -25,11 +25,21 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
   const { providers, updateProvider, toggleModel, addCustomModel, deleteCustomModel } = useConfigStore();
   const [showAddModelModal, setShowAddModelModal] = useState(false);
   const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const provider = MODEL_PROVIDERS.find(p => p.id === providerId);
   const config = providers.find(p => p.id === providerId);
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({}, 'input').border;
+
+  const availableModels = useMemo(() => {
+    if (!provider || !config) return [];
+    return [
+      ...provider.availableModels,
+      ...config.customModels
+    ].filter(model => config.enabledModels.includes(model.id));
+  }, [provider, config]);
 
   if (!provider || !config || !visible) return null;
 
@@ -49,6 +59,85 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
     }
   };
 
+  const handleTestApi = async () => {
+    if (!config.apiKey || !config.baseUrl) {
+      Toast.show({
+        type: 'error',
+        text1: i18n.t('config.apiKey') + '/' + i18n.t('config.baseUrl') + i18n.t('common.error'),
+      });
+      return;
+    }
+
+    if (!selectedModelId) {
+      Toast.show({
+        type: 'error',
+        text1: i18n.t('config.selectModelFirst'),
+      });
+      return;
+    }
+
+    const selectedModel = availableModels.find(m => m.id === selectedModelId);
+    if (!selectedModel) return;
+
+    setIsTesting(true);
+    Toast.show({
+      type: 'info',
+      text1: i18n.t('config.testing'),
+    });
+
+    setTimeout(() => {
+      setIsTesting(false);
+    }, 1000);
+  };
+
+  const renderApiTestSection = () => (
+    <View style={styles.apiConfig}>
+      <ThemedText style={styles.sectionTitle}>{i18n.t('config.baseUrl')}</ThemedText>
+      <Input
+        value={config.baseUrl}
+        onChangeText={(text) => updateProvider(providerId, { baseUrl: text })}
+        placeholder={i18n.t('config.baseUrlPlaceholder')}
+        style={styles.apiInput}
+      />
+
+      <ThemedText style={styles.sectionTitle}>{i18n.t('config.apiKey')}</ThemedText>
+      <Input
+        value={config.apiKey}
+        onChangeText={(text) => updateProvider(providerId, { apiKey: text })}
+        placeholder={i18n.t('config.apiKeyPlaceholder')}
+        secureTextEntry
+        style={styles.apiInput}
+      />
+
+      <ThemedText style={styles.sectionTitle}>{i18n.t('config.testModel')}</ThemedText>
+      <View style={styles.modelSelector}>
+        <Picker
+          selectedValue={selectedModelId}
+          onValueChange={setSelectedModelId}
+          enabled={!isTesting}
+          style={styles.picker}
+          items={[
+            { label: i18n.t('config.selectModelForTest'), value: '' },
+            ...availableModels.map(model => ({
+              label: model.name,
+              value: model.id
+            }))
+          ]}
+        />
+      </View>
+
+      <Button
+        onPress={handleTestApi}
+        disabled={isTesting || !selectedModelId}
+        size="medium"
+        variant="secondary"
+        style={styles.testButton}
+      >
+        {i18n.t('config.testApi')}
+      </Button>
+    </View>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -66,30 +155,9 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* API 配置部分 */}
-          <View style={styles.apiConfig}>
-            <ThemedText style={styles.sectionTitle}>{i18n.t('config.baseUrl')}</ThemedText>
-            <Input
-              value={config.baseUrl}
-              onChangeText={(text) => updateProvider(providerId, { baseUrl: text })}
-              placeholder={i18n.t('config.baseUrlPlaceholder')}
-              style={styles.apiInput}
-            />
-
-            <ThemedText style={styles.sectionTitle}>{i18n.t('config.apiKey')}</ThemedText>
-            <Input
-              value={config.apiKey}
-              onChangeText={(text) => updateProvider(providerId, { apiKey: text })}
-              placeholder={i18n.t('config.apiKeyPlaceholder')}
-              secureTextEntry
-              style={styles.apiInput}
-            />
-          </View>
-
-          {/* 模型列表部分 */}
+          {renderApiTestSection()}
           <ThemedText style={styles.sectionTitle}>{i18n.t('config.modelList')}</ThemedText>
           
-          {/* 内置模型 */}
           {provider.availableModels.map(model => (
             <ModelItem
               key={model.id}
@@ -99,7 +167,6 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
             />
           ))}
 
-          {/* 自定义模型 */}
           {config.customModels.map(model => (
             <ModelItem
               key={model.id}
@@ -111,7 +178,6 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
             />
           ))}
 
-          {/* 添加模型按钮 */}
           <View style={styles.addModelSection}>
             <Button
               onPress={() => setShowAddModelModal(true)}
@@ -135,8 +201,8 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
 
         <ConfirmDialog
           visible={!!deleteModelId}
-          title={i18n.t('config.deleteModel')}
-          message={i18n.t('common.confirm')}
+          title={i18n.t('config.deleteModel') + ' ' + deleteModelId}
+          message={i18n.t('confirmDialog.deleteModelMsg')}
           onConfirm={handleConfirmDelete}
           onCancel={() => setDeleteModelId(null)}
           variant="danger"
@@ -177,7 +243,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   apiConfig: {
-    marginBottom: 20,
+    marginBottom: 0,
   },
   apiInput: {
     fontSize: 16,
@@ -200,6 +266,19 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 8,
+  },
+  testButton: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  modelSelector: {
+    marginVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  picker: {
+    height: 50,
   },
 });
 

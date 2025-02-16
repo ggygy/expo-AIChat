@@ -1,5 +1,11 @@
 import { ModelType } from './ModelTypes';
 
+export enum ModelProviderId {
+  OpenAI = 'openai',
+  Anthropic = 'anthropic',
+  DeepSeek = 'deepseek',
+}
+
 export interface ModelInfo {
   id: string;
   name: string;
@@ -9,14 +15,14 @@ export interface ModelInfo {
 export interface ModelProvider {
   id: string;
   name: string;
-  baseUrl: string;
+  baseUrl?: string;
   apiKeyUrl?: string;
   availableModels: ModelInfo[];
 }
 
 export const MODEL_PROVIDERS: ModelProvider[] = [
   {
-    id: 'openai',
+    id: ModelProviderId.OpenAI,
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
@@ -49,7 +55,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     ],
   },
   {
-    id: 'anthropic',
+    id: ModelProviderId.Anthropic,
     name: 'Anthropic',
     baseUrl: 'https://api.anthropic.com/v1',
     apiKeyUrl: 'https://console.anthropic.com/account/keys',

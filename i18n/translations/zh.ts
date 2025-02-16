@@ -77,6 +77,20 @@ export const zh = {
     modelId: '模型 ID',
     modelTypes: '模型类型',
     modelType: '模型类型',
+    testApi: '测试 API',
+    testing: '测试中...',
+    testSuccess: 'API 连接成功',
+    testFailed: 'API 连接失败',
+    invalidApiKey: 'API密钥无效',
+    noPermission: '没有访问权限',
+    invalidApiUrl: 'API地址无效',
+    connectionError: '无法连接到服务器',
+    testModel: '测试模型',
+    selectModelForTest: '选择要测试的模型',
+    selectModelFirst: '请先选择要测试的模型',
+    quotaExceeded: 'API配额超限',
+    rateLimit: '请求频率超限',
+    unsupportedModel: '不支持的模型或类型',
   },
   modelTypes: {
     chat: '对话',
@@ -87,5 +101,9 @@ export const zh = {
   version: {
     description: 'AI Chat 是一款基于人工智能的聊天应用，支持多种AI模型和对话方式。',
     copyright: '保留所有权利',
+  },
+  confirmDialog: {
+    title: '确认',
+    deleteModelMsg: '确定删除模型吗？',
   },
 };

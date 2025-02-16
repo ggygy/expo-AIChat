@@ -77,6 +77,20 @@ export const en = {
     modelId: 'Model ID',
     modelTypes: 'Model Types',
     modelType: 'Model Type',
+    testApi: 'Test Connection',
+    testing: 'Testing connection...',
+    testSuccess: 'Connection successful! Model responded normally',
+    testFailed: 'Connection test failed',
+    invalidApiKey: 'Invalid API key',
+    noPermission: 'No permission',
+    invalidApiUrl: 'Invalid API URL',
+    connectionError: 'Cannot connect to server',
+    testModel: 'Test Model',
+    selectModelForTest: 'Select model to test',
+    selectModelFirst: 'Please select a model first',
+    quotaExceeded: 'API quota exceeded',
+    rateLimit: 'Rate limit exceeded',
+    unsupportedModel: 'Unsupported model or type',
   },
   modelTypes: {
     chat: 'Chat',
@@ -88,4 +102,8 @@ export const en = {
     description: 'AI Chat is a conversational application powered by artificial intelligence, supporting multiple AI models and conversation modes.',
     copyright: 'All Rights Reserved',
   },
+  confirmDialog: {
+    title: 'Confirm',
+    deleteModelMsg: 'Are you sure you want to delete this model?',
+  }
 };

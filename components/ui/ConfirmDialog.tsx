@@ -41,7 +41,7 @@ export const ConfirmDialog = ({
         onPress={onCancel}
       >
         <View style={[styles.dialog, { backgroundColor }]}>
-          <ThemedText style={styles.title}>{title}</ThemedText>
+          <ThemedText type='subtitle'>{title}</ThemedText>
           {message && <ThemedText style={styles.message}>{message}</ThemedText>}
           <View style={styles.buttonRow}>
             <Button

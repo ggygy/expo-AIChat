@@ -16,6 +16,18 @@ export const Colors = {
     tabIconSelected: tintColorLight,
     settingItemBackground: '#f5f5f5',
     secondaryText: '#687076',
+    divider: '#E0E0E0',
+    border: '#E0E0E0',
+    disabled: '#9E9E9E',
+    placeholder: '#9E9E9E',
+    backdrop: 'rgba(0, 0, 0, 0.5)',
+    surface: '#FFFFFF',
+    card: '#FFFFFF',
+    link: tintColorLight,
+    success: '#4caf50',
+    error: '#f44336',
+    warning: '#ff9800',
+    info: '#2196f3',
     
     // Input 组件颜色
     input: {
@@ -60,7 +72,7 @@ export const Colors = {
         disabled: '#FF525280',
       },
     },
-    link: tintColorLight,
+    
   },
   dark: {
     text: '#ECEDEE',
@@ -71,6 +83,18 @@ export const Colors = {
     tabIconSelected: tintColorDark,
     settingItemBackground: '#1A1D1E',
     secondaryText: '#9BA1A6',
+    divider: '#424242',
+    border: '#424242',
+    disabled: '#757575',
+    placeholder: '#757575',
+    backdrop: 'rgba(0, 0, 0, 0.7)',
+    surface: '#121212',
+    card: '#1E1E1E',
+    link: tintColorDark,
+    success: '#66bb6a',
+    error: '#ef5350',
+    warning: '#ffa726',
+    info: '#42a5f5',
     
     // Input 组件颜色
     input: {
@@ -115,6 +139,9 @@ export const Colors = {
         disabled: '#FF525280',
       },
     },
-    link: tintColorDark,
   },
-};
+} as const;
+
+// 类型定义
+export type ColorScheme = keyof typeof Colors;
+export type ColorKey = keyof (typeof Colors)['light'];
