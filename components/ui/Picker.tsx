@@ -30,9 +30,10 @@ export const Picker = ({ selectedValue, onValueChange, enabled = true, style, it
         onPress={() => enabled && setModalVisible(true)}
         style={[
           styles.pickerButton,
-          { borderColor, opacity: enabled ? 1 : 0.5 },
+          { borderColor},
           style
         ]}
+        activeOpacity={0.6}
       >
         <ThemedText style={styles.selectedText}>
           {selectedItem?.label || items[0]?.label}
@@ -43,7 +44,7 @@ export const Picker = ({ selectedValue, onValueChange, enabled = true, style, it
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -61,6 +62,7 @@ export const Picker = ({ selectedValue, onValueChange, enabled = true, style, it
               {items.map((item) => (
                 <TouchableOpacity
                   key={item.value}
+                  activeOpacity={0.5}
                   style={[
                     styles.option,
                     selectedValue === item.value && styles.selectedOption

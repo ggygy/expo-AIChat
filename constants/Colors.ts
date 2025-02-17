@@ -15,7 +15,7 @@ export const Colors = {
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
     settingItemBackground: '#f5f5f5',
-    secondaryText: '#687076',
+    secondaryText: '#666666',
     divider: '#E0E0E0',
     border: '#E0E0E0',
     disabled: '#9E9E9E',
@@ -28,6 +28,7 @@ export const Colors = {
     error: '#f44336',
     warning: '#ff9800',
     info: '#2196f3',
+    cardBackground: '#F5F5F5', // 修改为浅灰色
     
     // Input 组件颜色
     input: {
@@ -82,7 +83,7 @@ export const Colors = {
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
     settingItemBackground: '#1A1D1E',
-    secondaryText: '#9BA1A6',
+    secondaryText: '#A0A0A0',
     divider: '#424242',
     border: '#424242',
     disabled: '#757575',
@@ -95,6 +96,7 @@ export const Colors = {
     error: '#ef5350',
     warning: '#ffa726',
     info: '#42a5f5',
+    cardBackground: '#2A2A2A',
     
     // Input 组件颜色
     input: {

@@ -1,23 +1,17 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Image, View, Linking } from 'react-native';
+import { StyleSheet, Image, View, Linking, TouchableOpacity } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import i18n from '@/i18n/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import Toast from 'react-native-toast-message';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 const VERSION = Constants.expoConfig?.version || '1.0.0';
 const BUILD_NUMBER = Constants.expoConfig?.ios?.buildNumber || '1';
 
 export default function VersionScreen() {
-
-    useEffect(() => {
-        Toast.show({
-            type: 'error',
-            text1: i18n.t('config.apiKey') + '/' + i18n.t('config.baseUrl') + i18n.t('common.error'),
-          });
-    }, []);
+    const textColor = useThemeColor({}, 'text');
 
     return (
         <ThemedView style={styles.container}>
@@ -37,17 +31,18 @@ export default function VersionScreen() {
                     {i18n.t('version.description')}
                 </ThemedText>
 
-                <View style={styles.links}>
-                    <Ionicons
-                        name="logo-github"
-                        size={28}
-                        onPress={() => Linking.openURL('https://github.com/ggygy/expo-AIChat')}
-                    />
-                </View>
+                <TouchableOpacity
+                    style={styles.links}
+                    activeOpacity={0.7}
+                    onPress={() => Linking.openURL('https://github.com/ggygy/expo-AIChat')}
+                >
+                    <ThemedText>ggygy</ThemedText>
+                    <Ionicons name="logo-github" size={28} color={textColor} />
+                </TouchableOpacity>
             </View>
 
             <ThemedText style={styles.copyright}>
-                © 2024 AI Chat. {i18n.t('version.copyright')}
+                © 2025 AI Chat. {i18n.t('version.copyright')}
             </ThemedText>
         </ThemedView>
     );
@@ -56,12 +51,11 @@ export default function VersionScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
         alignItems: 'center',
     },
     header: {
         alignItems: 'center',
-        marginTop: 40,
+        marginTop: 20,
     },
     logo: {
         width: 100,
@@ -82,6 +76,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        maxHeight: 200,
     },
     description: {
         textAlign: 'center',
@@ -90,11 +85,12 @@ const styles = StyleSheet.create({
     },
     links: {
         flexDirection: 'row',
-        gap: 20,
+        gap: 10,
     },
     copyright: {
         fontSize: 12,
         opacity: 0.5,
-        marginBottom: 20,
+        position: 'absolute',
+        bottom: 120,
     },
 });

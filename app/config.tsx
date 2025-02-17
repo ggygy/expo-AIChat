@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FlatList, StyleSheet, ListRenderItemInfo } from 'react-native';
 import { Stack } from 'expo-router';
-import { useConfigStore, ProviderConfig } from '@/store/useConfigStore';
+import { useProviderStore, ProviderConfig } from '@/store/useProviderStore';
 import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 import { AddProviderList } from '@/components/provider/AddProviderList';
 import { ThemedText } from '@/components/ThemedText';
@@ -10,10 +10,10 @@ import ProviderCard from '@/components/provider/ProviderCard';
 import i18n from '@/i18n/i18n';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
-const AIConfigScreen = () => {
+const ConfigScreen = () => {
   const backgroundColor = useThemeColor({}, 'background');
   
-  const { providers, addProvider, setActiveProvider } = useConfigStore();
+  const { providers, addProvider, setActiveProvider } = useProviderStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const availableProviders = MODEL_PROVIDERS.filter(
@@ -88,4 +88,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AIConfigScreen;
+export default ConfigScreen;

@@ -8,13 +8,13 @@ export interface ProviderConfig {
   apiKey: string;
   baseUrl: string;
   isActive: boolean;
-  enabledModels: string[];  // 使用单独的数组来追踪启用状态
-  customModels: ModelInfo[];  // 直接使用 ModelInfo 接口
+  enabledModels: string[];
+  customModels: ModelInfo[];
 }
 
 interface ConfigStore {
   providers: ProviderConfig[];
-  activeProviderId: string | null;  // 改回 activeProviderId
+  activeProviderId: string[];
   addProvider: (provider: Omit<ProviderConfig, 'enabledModels' | 'customModels'>) => void;
   updateProvider: (id: string, updates: Partial<ProviderConfig>) => void;
   deleteProvider: (id: string) => void;
@@ -25,11 +25,11 @@ interface ConfigStore {
   refreshProviders: () => void;
 }
 
-export const useConfigStore = create<ConfigStore>()(
+export const useProviderStore = create<ConfigStore>()(
   persist(
     (set, get) => ({
       providers: [],
-      activeProviderId: null,
+      activeProviderId: [],  // 初始化为空数组
       addProvider: (provider) => set((state) => ({
         providers: [
           ...state.providers,
@@ -48,21 +48,23 @@ export const useConfigStore = create<ConfigStore>()(
       })),
       deleteProvider: (id) => set((state) => ({
         providers: state.providers.filter(provider => provider.id !== id),
-        activeProviderId: state.activeProviderId === id ? null : state.activeProviderId
+        activeProviderId: state.activeProviderId.filter(pid => pid !== id)
       })),
       setActiveProvider: (id) => set((state) => {
         const provider = state.providers.find(p => p.id === id);
         if (!provider) return state;
 
-        const newIsActive = !provider.isActive;
+        const isInActiveIds = state.activeProviderId.includes(id);
+        const newIsActive = !isInActiveIds;
+
         return {
           providers: state.providers.map(p => ({
             ...p,
             isActive: p.id === id ? newIsActive : p.isActive
           })),
-          activeProviderId: provider.id === state.activeProviderId && !newIsActive 
-            ? null 
-            : (newIsActive ? id : state.activeProviderId)
+          activeProviderId: newIsActive
+            ? [...state.activeProviderId, id]
+            : state.activeProviderId.filter(pid => pid !== id)
         };
       }),
       toggleModel: (providerId, modelId) => set((state) => ({
@@ -97,7 +99,6 @@ export const useConfigStore = create<ConfigStore>()(
         )
       })),
       refreshProviders: () => {
-        // 优化刷新逻辑
         const currentState = get();
         set({
           providers: [...currentState.providers],
@@ -109,7 +110,6 @@ export const useConfigStore = create<ConfigStore>()(
       name: 'config-storage',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
-        // 存储恢复后立即触发一次刷新
         if (state) {
           state.refreshProviders();
         }
@@ -117,10 +117,3 @@ export const useConfigStore = create<ConfigStore>()(
     }
   )
 );
-
-export const getCurrentProvider = (state: ConfigStore) => {
-  const activeProvider = state.providers.find(p => p.id === state.activeProviderId);
-  if (activeProvider?.isActive) return activeProvider;
-  
-  return state.providers.find(p => p.isActive) || null;
-};

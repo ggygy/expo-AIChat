@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import i18n from '@/i18n/i18n';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { ThemedView } from '@/components/ThemedView';
+import { toastConfig } from '@/components/toastConfig';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -84,10 +86,24 @@ export default function RootLayout() {
                 title: i18n.t('settings.about.version'),
               }}
             />
+            <Stack.Screen
+              name="newBot"
+              options={{
+                presentation: 'modal',
+                title: i18n.t('bot.create'),
+              }}
+            />
+            <Stack.Screen
+              name="chat/[providerId]/[modelId]"
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
           </Stack>
           <StatusBar style={currentTheme === DarkTheme ? 'light' : 'dark'} />
         </ThemedView>
       </ThemeProvider>
+      <Toast config={toastConfig} topOffset={50}/>
     </SafeAreaProvider>
   );
 }

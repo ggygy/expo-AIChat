@@ -92,6 +92,12 @@ export const en = {
     rateLimit: 'Rate limit exceeded',
     unsupportedModel: 'Unsupported model or type',
   },
+  home: {
+    title: 'AI Assistants',
+    subtitle: 'Select an assistant to start chatting',
+    noAssistants: 'No active AI assistants found.',
+    configurePrompt: 'Please configure your providers in the settings tab.'
+  },
   modelTypes: {
     chat: 'Chat',
     image: 'Image',

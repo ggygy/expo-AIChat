@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
-import { ProviderConfig } from '@/store/useConfigStore';
+import { ProviderConfig } from '@/store/useProviderStore';
 import { ModelProvider } from '@/constants/ModelProviders';
 import i18n from '@/i18n/i18n';
 import { useThemeColor } from '@/hooks/useThemeColor';

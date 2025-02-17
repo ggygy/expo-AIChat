@@ -3,8 +3,8 @@ import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity } f
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
-import { useConfigStore } from '@/store/useConfigStore';
+import { MODEL_PROVIDERS, ModelProviderId } from '@/constants/ModelProviders';
+import { useProviderStore } from '@/store/useProviderStore';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ModelType } from '@/constants/ModelTypes';
@@ -14,6 +14,7 @@ import AddModelModal from './AddModelModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import Toast from 'react-native-toast-message';
 import { Picker } from '@/components/ui/Picker';
+import { ProviderFactory } from '@/provider/ProviderFactory';
 
 interface Props {
   providerId: string;
@@ -22,7 +23,7 @@ interface Props {
 }
 
 function ModelConfigModal({ providerId, visible, onClose }: Props) {
-  const { providers, updateProvider, toggleModel, addCustomModel, deleteCustomModel } = useConfigStore();
+  const { providers, updateProvider, toggleModel, addCustomModel, deleteCustomModel } = useProviderStore();
   const [showAddModelModal, setShowAddModelModal] = useState(false);
   const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
@@ -76,18 +77,46 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
       return;
     }
 
-    const selectedModel = availableModels.find(m => m.id === selectedModelId);
-    if (!selectedModel) return;
-
     setIsTesting(true);
     Toast.show({
       type: 'info',
       text1: i18n.t('config.testing'),
     });
 
-    setTimeout(() => {
+    try {
+      const provider = ProviderFactory.createProvider(providerId as ModelProviderId);
+      provider.initialize({
+        vendor: providerId as ModelProviderId,
+        apiKey: config.apiKey,
+        modelName: selectedModelId,
+        baseUrl: config.baseUrl,
+      });
+
+      const result = await provider.testModel();
+      
       setIsTesting(false);
-    }, 1000);
+      
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: i18n.t('config.testSuccess'),
+        });
+      } else {
+        const errorCode = result.error?.code || 'unknown';
+        Toast.show({
+           type: 'error',
+          text1: i18n.t('config.testFailed'),
+          text2: i18n.t(`config.${errorCode}`, { defaultValue: result.error?.message }),
+        });
+      }
+    } catch (error) {
+      setIsTesting(false);
+      Toast.show({
+        type: 'error',
+        text1: i18n.t('config.testFailed'),
+        text2: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   const renderApiTestSection = () => (
@@ -142,7 +171,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="fullScreen"
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -157,7 +186,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {renderApiTestSection()}
           <ThemedText style={styles.sectionTitle}>{i18n.t('config.modelList')}</ThemedText>
-          
+
           {provider.availableModels.map(model => (
             <ModelItem
               key={model.id}
@@ -190,7 +219,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
           </View>
         </ScrollView>
 
-        <AddModelModal 
+        <AddModelModal
           visible={showAddModelModal}
           onClose={() => setShowAddModelModal(false)}
           onAdd={(model) => {
@@ -207,6 +236,8 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
           onCancel={() => setDeleteModelId(null)}
           variant="danger"
         />
+
+        <Toast />
       </SafeAreaView>
     </Modal>
   );

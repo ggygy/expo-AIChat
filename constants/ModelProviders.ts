@@ -2,20 +2,20 @@ import { ModelType } from './ModelTypes';
 
 export enum ModelProviderId {
   OpenAI = 'openai',
-  Anthropic = 'anthropic',
   DeepSeek = 'deepseek',
 }
 
 export interface ModelInfo {
   id: string;
   name: string;
-  types: ModelType[];  // enabled 属性应该从接口中移除，它只是初始状态
+  types: ModelType[];
 }
 
 export interface ModelProvider {
-  id: string;
+  id: ModelProviderId;
   name: string;
-  baseUrl?: string;
+  icon: string;
+  baseUrl: string;
   apiKeyUrl?: string;
   availableModels: ModelInfo[];
 }
@@ -24,6 +24,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
   {
     id: ModelProviderId.OpenAI,
     name: 'OpenAI',
+    icon: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     apiKeyUrl: 'https://platform.openai.com/api-keys',
     availableModels: [
@@ -34,34 +35,19 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
       },
       { 
         id: 'gpt-4', 
-        name: 'GPT-4', 
+        name: 'GPT-4',
         types: ['chat', 'inference']
-      },
-      { 
-        id: 'gpt-4-turbo', 
-        name: 'GPT-4 Turbo', 
-        types: ['chat']
-      },
-      { 
-        id: 'dall-e-3', 
-        name: 'DALL·E 3', 
-        types: ['image']
-      },
-      { 
-        id: 'text-embedding-ada-002', 
-        name: 'Ada Embedding', 
-        types: ['embedding']
-      },
+      }
     ],
   },
   {
-    id: ModelProviderId.Anthropic,
-    name: 'Anthropic',
-    baseUrl: 'https://api.anthropic.com/v1',
-    apiKeyUrl: 'https://console.anthropic.com/account/keys',
+    id: ModelProviderId.DeepSeek,
+    name: 'DeepSeek',
+    icon: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1',
     availableModels: [
-      { id: 'claude-2', name: 'Claude 2', types: ['chat'] },
-      { id: 'claude-instant', name: 'Claude Instant', types: ['chat'] },
+      { id: 'deepseek-chat', name: 'deepseek V3', types: ['chat'] },
+      { id: 'deepseek-reasoner', name: 'deepseek R1', types: ['chat', 'inference'] },
     ],
   },
 ];
