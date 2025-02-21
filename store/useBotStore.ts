@@ -11,7 +11,12 @@ export interface BotConfig {
   providerId: string;
   modelId: string;
   temperature: number;
+  topP: number;
   maxContextLength: number;
+  enableMaxTokens: boolean;
+  maxTokens?: number;
+  streamOutput: boolean;
+  chainOfThought: number;
   systemPrompt?: string;
   createdAt: number;
   description?: string;
@@ -41,6 +46,13 @@ export const useBotStore = create<BotStore>()(
             ...bot,
             id: Math.random().toString(36).substring(7),
             createdAt: Date.now(),
+            temperature: bot.temperature ?? 0.7,
+            topP: bot.topP ?? 1,
+            maxContextLength: bot.maxContextLength ?? 4,
+            enableMaxTokens: bot.enableMaxTokens ?? false,
+            maxTokens: bot.maxTokens,
+            streamOutput: bot.streamOutput ?? true,
+            chainOfThought: bot.chainOfThought ?? 0,
           }
         ]
       })),

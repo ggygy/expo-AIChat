@@ -36,10 +36,9 @@ const ConfigScreen = () => {
 
   const handleAddProvider = useCallback((providerId: string) => {
     addProvider({ 
-      id: providerId, 
-      apiKey: '', 
-      baseUrl: MODEL_PROVIDERS.find(p => p.id === providerId)?.baseUrl || '',
-      isActive: false 
+      id: providerId,
+      apiKey: '',
+      isActive: false
     });
   }, [addProvider]);
 

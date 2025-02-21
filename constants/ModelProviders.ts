@@ -45,6 +45,7 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     name: 'DeepSeek',
     icon: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
+    apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     availableModels: [
       { id: 'deepseek-chat', name: 'deepseek V3', types: ['chat'] },
       { id: 'deepseek-reasoner', name: 'deepseek R1', types: ['chat', 'inference'] },

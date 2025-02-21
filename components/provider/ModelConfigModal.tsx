@@ -28,7 +28,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
   const [deleteModelId, setDeleteModelId] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
-  const provider = MODEL_PROVIDERS.find(p => p.id === providerId);
+  const provider = providers.find(p => p.id === providerId);
   const config = providers.find(p => p.id === providerId);
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -179,7 +179,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
           <TouchableOpacity style={styles.iconContainer} onPress={onClose}>
             <IconSymbol name="arrow-back" size={28} color={textColor} />
           </TouchableOpacity>
-          <ThemedText style={styles.title}>{provider.name}</ThemedText>
+          <ThemedText style={styles.title}>{provider.id}</ThemedText>
           <View style={styles.backButton} />
         </View>
 

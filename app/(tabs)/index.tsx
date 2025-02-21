@@ -9,13 +9,17 @@ import { BotCard } from '@/components/BotCard';
 import { useBotStore } from '@/store/useBotStore';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Toast from 'react-native-toast-message';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useState } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
   const bots = useBotStore(state => state.bots);
-  const availableBots = useBotStore(state => state.getAvailableBots());
-  const subtitleColor = useThemeColor({}, 'secondaryText');
-  const currentLanguage = useLanguageStore(state => state.currentLanguage);
+  const deleteBot = useBotStore(state => state.deleteBot);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
 
   const handleBotPress = (botId: string) => {
     router.navigate(`/chat/${botId}`);
@@ -25,51 +29,91 @@ export default function HomeScreen() {
     router.push('/newBot');
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="subtitle">{i18n.t('home.title')}</ThemedText>
-        </ThemedView>
+  const handleEditBot = (botId: string) => {
+    router.push(`/editBot/${botId}`);
+  };
 
-        {bots.length === 0 ? (
-          <ThemedView style={styles.emptyState}>
-            <ThemedText>{i18n.t('home.noBots')}</ThemedText>
-            <ThemedText>{i18n.t('home.createBotPrompt')}</ThemedText>
-            <Button 
-              variant="primary"
-              onPress={handleCreateBot}
-            >
-              {i18n.t('bot.create')}
-            </Button>
+  const handleDeleteBot = (botId: string) => {
+    setSelectedBotId(botId);
+    setDeleteDialogVisible(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedBotId) {
+      deleteBot(selectedBotId);
+      Toast.show({
+        type: 'success',
+        text1: i18n.t('bot.deleteSuccess'),
+      });
+    }
+    setDeleteDialogVisible(false);
+    setSelectedBotId(null);
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogVisible(false);
+    setSelectedBotId(null);
+  };
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.safeArea}>
+        <ThemedView style={styles.container}>
+          <ThemedView style={styles.header}>
+            <ThemedText type="subtitle">{i18n.t('home.title')}</ThemedText>
           </ThemedView>
-        ) : (
-          <>
-            <FlatList
-              data={bots}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <BotCard
-                  {...item}
-                  description={item.description || `${item.providerId} - ${item.modelId}`}
-                  icon="robot"
-                  onPress={() => handleBotPress(item.id)}
-                />
-              )}
-              contentContainerStyle={styles.list}
-            />
-            <Button 
-              variant="primary"
-              style={styles.floatingButton}
-              onPress={handleCreateBot}
-            >
-              {i18n.t('bot.create')}
-            </Button>
-          </>
-        )}
-      </ThemedView>
-    </SafeAreaView>
+
+          {bots.length === 0 ? (
+            <ThemedView style={styles.emptyState}>
+              <ThemedText>{i18n.t('home.noBots')}</ThemedText>
+              <ThemedText>{i18n.t('home.createBotPrompt')}</ThemedText>
+              <Button 
+                variant="primary"
+                onPress={handleCreateBot}
+              >
+                {i18n.t('bot.create')}
+              </Button>
+            </ThemedView>
+          ) : (
+            <>
+              <FlatList
+                data={bots}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <BotCard
+                    {...item}
+                    description={item.description || `${item.providerId} - ${item.modelId}`}
+                    icon="setting"
+                    onPress={() => handleBotPress(item.id)}
+                    onEdit={() => handleEditBot(item.id)}
+                    onDelete={() => handleDeleteBot(item.id)}
+                  />
+                )}
+                contentContainerStyle={styles.list}
+              />
+              <Button 
+                variant="primary"
+                style={styles.floatingButton}
+                onPress={handleCreateBot}
+              >
+                {i18n.t('bot.create')}
+              </Button>
+            </>
+          )}
+        </ThemedView>
+      </SafeAreaView>
+      <ConfirmDialog
+        visible={deleteDialogVisible}
+        title={i18n.t('bot.deleteConfirmTitle')}
+        message={i18n.t('bot.deleteConfirmMessage')}
+        confirmText={i18n.t('common.delete')}
+        cancelText={i18n.t('common.cancel')}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        variant="danger"
+      />
+    </GestureHandlerRootView>
   );
 }
 

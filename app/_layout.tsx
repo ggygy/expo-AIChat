@@ -89,12 +89,19 @@ export default function RootLayout() {
             <Stack.Screen
               name="newBot"
               options={{
-                presentation: 'modal',
+                animation: 'slide_from_right',
                 title: i18n.t('bot.create'),
               }}
             />
             <Stack.Screen
-              name="chat/[providerId]/[modelId]"
+              name="editBot/[botId]"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('bot.edit'),
+              }}
+            />
+            <Stack.Screen
+              name="chat/[botId]"
               options={{
                 animation: 'slide_from_right',
               }}

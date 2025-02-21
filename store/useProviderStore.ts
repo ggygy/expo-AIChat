@@ -9,13 +9,14 @@ export interface ProviderConfig {
   baseUrl: string;
   isActive: boolean;
   enabledModels: string[];
+  availableModels: ModelInfo[];
   customModels: ModelInfo[];
 }
 
 interface ConfigStore {
   providers: ProviderConfig[];
   activeProviderId: string[];
-  addProvider: (provider: Omit<ProviderConfig, 'enabledModels' | 'customModels'>) => void;
+  addProvider: (provider: Omit<ProviderConfig, 'baseUrl' | 'enabledModels' | 'availableModels' | 'customModels'>) => void;
   updateProvider: (id: string, updates: Partial<ProviderConfig>) => void;
   deleteProvider: (id: string) => void;
   setActiveProvider: (id: string) => void;
@@ -37,6 +38,7 @@ export const useProviderStore = create<ConfigStore>()(
             ...provider,
             baseUrl: MODEL_PROVIDERS.find(p => p.id === provider.id)?.baseUrl || '',
             enabledModels: [],
+            availableModels: MODEL_PROVIDERS.find(p => p.id === provider.id)?.availableModels || [],
             customModels: []
           }
         ]

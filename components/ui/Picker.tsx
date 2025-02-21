@@ -14,9 +14,17 @@ interface PickerProps {
     label: string;
     value: string;
   }>;
+  placeholder?: string;
 }
 
-export const Picker = ({ selectedValue, onValueChange, enabled = true, style, items }: PickerProps) => {
+export const Picker = ({ 
+  selectedValue, 
+  onValueChange, 
+  enabled = true, 
+  style, 
+  items,
+  placeholder = 'please select',
+}: PickerProps) => {
   const [modalVisible, setModalVisible] = useState(false);
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -30,13 +38,17 @@ export const Picker = ({ selectedValue, onValueChange, enabled = true, style, it
         onPress={() => enabled && setModalVisible(true)}
         style={[
           styles.pickerButton,
-          { borderColor},
+          { borderColor },
+          !selectedValue && styles.placeholderButton, // 添加未选择状态样式
           style
         ]}
         activeOpacity={0.6}
       >
-        <ThemedText style={styles.selectedText}>
-          {selectedItem?.label || items[0]?.label}
+        <ThemedText style={[
+          styles.selectedText,
+          !selectedValue && styles.placeholderText // 添加未选择状态文字样式
+        ]}>
+          {selectedItem?.label || placeholder}
         </ThemedText>
         <Ionicons name="chevron-down" size={20} color={textColor} />
       </TouchableOpacity>
@@ -128,5 +140,11 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16,
+  },
+  placeholderButton: {
+    borderStyle: 'dashed',
+  },
+  placeholderText: {
+    color: '#999',
   },
 });
