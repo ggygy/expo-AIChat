@@ -37,8 +37,11 @@ export default function NewBotScreen() {
       
       addBot({
         ...data,
-        description: `${providerInfo?.id || data.providerId} - ${data.modelId}`,
-      });
+        description: `${data.modelId}`,
+        lastMessageAt: undefined,
+        lastMessagePreview: undefined,
+        messagesCount: undefined,
+      }); 
       
       Toast.show({
         type: 'success',

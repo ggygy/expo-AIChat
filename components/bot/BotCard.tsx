@@ -1,16 +1,20 @@
+import React, { memo } from 'react';
 import { StyleSheet, Animated, Platform, useColorScheme, View } from 'react-native';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
 import { FontAwesome } from '@expo/vector-icons';
-import { ThemedText } from './ThemedText';
-import { ThemedView } from './ThemedView';
+import { ThemedText } from '../ThemedText';
+import { ThemedView } from '../ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { getProviderIcon, type IconNames } from '@/constants/IconType';
+import { ModelProviderId } from '@/constants/ModelProviders';
+import CustomIcon from '../ui/CustomIcon';
 import i18n from '@/i18n/i18n';
 
 export type BotCardProps = {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  providerId: ModelProviderId;
   lastMessageAt?: number;
   messagesCount?: number;
   onPress: () => void;
@@ -20,21 +24,22 @@ export type BotCardProps = {
 
 const SWIPE_WIDTH = 80;
 
-export const BotCard = ({ 
+const BotCard: React.FC<BotCardProps> = ({ 
   name, 
-  description, 
-  icon, 
+  description,
   lastMessageAt,
   messagesCount,
+  providerId,
   onPress,
   onEdit,
   onDelete
-}: BotCardProps) => {
+}) => {
   const iconColor = useThemeColor({}, 'text');
-  const cardBackgroundColor = useThemeColor({}, 'cardBackground');
+  const cardBackgroundColor = useThemeColor({}, 'background');
   const dangerColor = useThemeColor({}, 'error');
   const primaryColor = useThemeColor({}, 'tint');
   const theme = useColorScheme();
+  const iconConfig = getProviderIcon(providerId);
 
   const renderLeftActions = (
     progress: Animated.AnimatedInterpolation<number>,
@@ -130,19 +135,33 @@ export const BotCard = ({
         activeOpacity={0.8}
       >
         <ThemedView style={styles.iconContainer}>
-          <FontAwesome name={icon as any} size={24} color={iconColor} />
+        <CustomIcon 
+          name={iconConfig.name as IconNames} 
+          size={iconConfig.size} 
+          color={iconConfig.defaultColor || iconColor}
+        />
         </ThemedView>
         <View style={styles.cardContent}>
-          <ThemedText type="subtitle">{name}</ThemedText>
-          <ThemedText style={styles.description}>{description}</ThemedText>
-          {lastMessageAt && (
-            <ThemedText style={styles.lastMessage}>
-              {`${i18n.t('bot.lastMessage')}: ${new Date(lastMessageAt).toLocaleString()}`}
-            </ThemedText>
-          )}
-          {messagesCount !== undefined && (
-            <ThemedText style={styles.messageCount}>
-              {`${i18n.t('bot.messageCount')}: ${messagesCount}`}
+          <View style={styles.titleRow}>
+            <ThemedText type="subtitle" style={styles.name}>{name}</ThemedText>
+            <ThemedText style={styles.description}>{description}</ThemedText>
+          </View>
+          {(lastMessageAt || messagesCount) ? (
+            <View style={styles.statsRow}>
+              {lastMessageAt && (
+                <ThemedText style={styles.statsText}>
+                  {new Date(lastMessageAt).toLocaleString()}
+                </ThemedText>
+              )}
+              {messagesCount !== undefined && (
+                <ThemedText style={styles.statsText}>
+                  {`${messagesCount} ${i18n.t('bot.messages')}`}
+                </ThemedText>
+              )}
+            </View>
+          ): (
+            <ThemedText style={styles.statsText}>
+              {i18n.t('bot.noMessages')} - {i18n.t('bot.startChat')}
             </ThemedText>
           )}
         </View>
@@ -154,49 +173,59 @@ export const BotCard = ({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: 'center',
-    marginHorizontal: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 40,
+    height: 40,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 10,
   },
   cardContent: {
     flex: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  name: {
+    flex: 0,
+  },
   description: {
-    marginTop: 4,
     fontSize: 14,
-  },
-  lastMessage: {
-    fontSize: 12,
-    marginTop: 4,
     opacity: 0.7,
+    flex: 1,
   },
-  messageCount: {
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 12,
+  },
+  statsText: {
     fontSize: 12,
-    marginTop: 2,
     opacity: 0.7,
   },
   leftAction: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
   },
   rightAction: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
   },
   actionButton: {
     flex: 1,
@@ -211,3 +240,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default memo(BotCard);

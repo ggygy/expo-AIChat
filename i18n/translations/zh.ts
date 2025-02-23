@@ -41,6 +41,7 @@ export const zh = {
     send: '发送',
     retry: '重试',
     error: '发送失败',
+    holdToSpeak: '按住说话',
   },
   config: {
     title: '服务商配置',
@@ -153,5 +154,8 @@ export const zh = {
     deleteConfirmTitle: '删除助手',
     deleteConfirmMessage: '确定要删除这个助手吗？此操作不可恢复。',
     deleteSuccess: '删除成功',
+    messages: '条消息',
+    noMessages: '还没有进行任何对话',
+    startChat: '开始对话',
   },
 };

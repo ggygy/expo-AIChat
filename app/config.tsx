@@ -1,14 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { FlatList, StyleSheet, ListRenderItemInfo } from 'react-native';
-import { Stack } from 'expo-router';
 import { useProviderStore, ProviderConfig } from '@/store/useProviderStore';
 import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 import { AddProviderList } from '@/components/provider/AddProviderList';
 import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import ModelConfigModal from '@/components/provider/ModelConfigModal';
 import ProviderCard from '@/components/provider/ProviderCard';
 import i18n from '@/i18n/i18n';
-import { useThemeColor } from '@/hooks/useThemeColor';
 
 const ConfigScreen = () => {
   const backgroundColor = useThemeColor({}, 'background');

@@ -76,19 +76,11 @@ export default function SettingsScreen() {
   }), [themeMode]);
 
   return (
-    <>
-      <SafeAreaView
-        style={[
-          styles.safeArea,
-          backgroundStyle
-        ]}
-        edges={['top']}
-      >
-        <ThemedView style={styles.container}>
-          <SettingList data={settingsData} style={styles.SettingListContainer} />
-        </ThemedView>
-      </SafeAreaView>
-    </>
+    <SafeAreaView style={styles.safeArea}>
+      <ThemedView style={styles.container}>
+        <SettingList data={settingsData} style={styles.SettingListContainer} />
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 

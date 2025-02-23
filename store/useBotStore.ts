@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 import { useProviderStore } from './useProviderStore';
 
 export interface BotConfig {
@@ -20,6 +19,7 @@ export interface BotConfig {
   systemPrompt?: string;
   createdAt: number;
   description?: string;
+  lastMessagePreview?: string;
   lastMessageAt?: number;
   messagesCount?: number;
 }

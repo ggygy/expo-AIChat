@@ -1,6 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
@@ -24,6 +26,7 @@ export default function RootLayout() {
   const themeMode = useThemeStore((state) => state.themeMode);
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    Iconfont: require('../assets/fonts/iconfont.ttf'),
   });
 
   // 根据 themeMode 确定当前主题
@@ -64,53 +67,63 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={currentTheme}>
-        <ThemedView style={{ flex: 1 }}>
-          <Stack screenOptions={screenOptions}>
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false,
-              }}
+        <GestureHandlerRootView style={styles.container}>
+          <ThemedView style={{ flex: 1 }}>
+            <Stack screenOptions={screenOptions}>
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="config"
+                options={{
+                  animation: 'slide_from_right',
+                  title: i18n.t('settings.aiConfig.title'),
+                }}
+              />
+              <Stack.Screen
+                name="version"
+                options={{
+                  animation: 'slide_from_right',
+                  title: i18n.t('settings.about.version'),
+                }}
+              />
+              <Stack.Screen
+                name="newBot"
+                options={{
+                  animation: 'slide_from_right',
+                  title: i18n.t('bot.create'),
+                }}
+              />
+              <Stack.Screen
+                name="editBot/[botId]"
+                options={{
+                  animation: 'slide_from_right',
+                  title: i18n.t('bot.edit'),
+                }}
+              />
+              <Stack.Screen
+                name="chat/[id]"
+                options={{
+                  animation: 'slide_from_right',
+                }}
+              />
+            </Stack>
+            <StatusBar 
+              style={colorScheme === 'dark' ? 'light' : 'dark'} 
             />
-            <Stack.Screen
-              name="config"
-              options={{
-                animation: 'slide_from_right',
-                title: i18n.t('settings.aiConfig.title'),
-              }}
-            />
-            <Stack.Screen
-              name="version"
-              options={{
-                animation: 'slide_from_right',
-                title: i18n.t('settings.about.version'),
-              }}
-            />
-            <Stack.Screen
-              name="newBot"
-              options={{
-                animation: 'slide_from_right',
-                title: i18n.t('bot.create'),
-              }}
-            />
-            <Stack.Screen
-              name="editBot/[botId]"
-              options={{
-                animation: 'slide_from_right',
-                title: i18n.t('bot.edit'),
-              }}
-            />
-            <Stack.Screen
-              name="chat/[botId]"
-              options={{
-                animation: 'slide_from_right',
-              }}
-            />
-          </Stack>
-          <StatusBar style={currentTheme === DarkTheme ? 'light' : 'dark'} />
-        </ThemedView>
+          </ThemedView>
+        </GestureHandlerRootView>
       </ThemeProvider>
       <Toast config={toastConfig} topOffset={50}/>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

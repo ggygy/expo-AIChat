@@ -46,6 +46,12 @@
         "projectId": "f1c41e1d-cb1c-4a00-8958-a3b285681951"
       }
     },
-    "owner": "ggygy"
+    "owner": "ggygy",
+    "fonts": [
+      {
+        "asset": "assets/fonts/iconfont.ttf",
+        "family": "iconfont"
+      }
+    ]
   }
 }

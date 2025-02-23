@@ -5,24 +5,25 @@ import i18n from '@/i18n/i18n';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Button } from '@/components/ui/Button';
-import { BotCard } from '@/components/BotCard';
 import { useBotStore } from '@/store/useBotStore';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useLanguageStore } from '@/store/useLanguageStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Toast from 'react-native-toast-message';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useState } from 'react';
+import { type ModelProviderId } from '@/constants/ModelProviders';
+import Toast from 'react-native-toast-message';
+import BotCard from '@/components/bot/BotCard';
+import { useLanguageStore } from '@/store/useLanguageStore';
 
 export default function HomeScreen() {
   const router = useRouter();
   const bots = useBotStore(state => state.bots);
   const deleteBot = useBotStore(state => state.deleteBot);
+  const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [selectedBotId, setSelectedBotId] = useState<string | null>(null);
 
-  const handleBotPress = (botId: string) => {
-    router.navigate(`/chat/${botId}`);
+  const handleBotPress = (id: string) => {
+    router.navigate(`/chat/${id}`);
   };
 
   const handleCreateBot = () => {
@@ -83,11 +84,11 @@ export default function HomeScreen() {
                 renderItem={({ item }) => (
                   <BotCard
                     {...item}
-                    description={item.description || `${item.providerId} - ${item.modelId}`}
-                    icon="setting"
+                    description={item.description || `${item.modelId}`}
                     onPress={() => handleBotPress(item.id)}
                     onEdit={() => handleEditBot(item.id)}
                     onDelete={() => handleDeleteBot(item.id)}
+                    providerId={item.providerId as ModelProviderId}
                   />
                 )}
                 contentContainerStyle={styles.list}
@@ -133,8 +134,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   list: {
-    gap: 10,
-    paddingVertical: 5,
+    gap: 2,
   },
   emptyState: {
     flex: 1,
