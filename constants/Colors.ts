@@ -28,7 +28,7 @@ export const Colors = {
     error: '#f44336',
     warning: '#ff9800',
     info: '#2196f3',
-    cardBackground: '#F5F5F5', // 修改为浅灰色
+    cardBackground: '#F5F5F5',
     
     // Input 组件颜色
     input: {
@@ -60,11 +60,11 @@ export const Colors = {
       outline: {
         border: tintColorLight,
         text: tintColorLight,
-        disabled: '#B3E5FC',  // 添加较淡的蓝色作为禁用状态
+        disabled: '#B3E5FC',
       },
       ghost: {
         text: tintColorLight,
-        disabled: '#B3E5FC',  // 同样添加较淡的蓝色作为禁用状态
+        disabled: '#B3E5FC',
       },
       danger: {
         background: '#FF5252',
@@ -74,6 +74,20 @@ export const Colors = {
       },
     },
     
+    // Chat 页面颜色
+    chat: {
+      userBubble: '#dcf8c6',
+      botBubble: '#f5f5f5',
+      userBubbleBorder: '#c7e6b8',
+      botBubbleBorder: '#e0e0e0',
+      timestamp: '#999999',
+      sending: '#999999',
+      sent: '#4fc3f7',
+      error: '#ef5350',
+      retryButton: '#ff5252',
+      markdownCode: 'rgba(0,0,0,0.05)',
+      divider: '#e0e0e0',
+    },
   },
   dark: {
     text: '#ECEDEE',
@@ -96,7 +110,7 @@ export const Colors = {
     error: '#ef5350',
     warning: '#ffa726',
     info: '#42a5f5',
-    cardBackground: '#2A2A2A',
+    cardBackground: '#000',
     
     // Input 组件颜色
     input: {
@@ -140,6 +154,21 @@ export const Colors = {
         shadow: '#FF525240',
         disabled: '#FF525280',
       },
+    },
+    
+    // Chat 组件颜色
+    chat: {
+      userBubble: '#205c3b',
+      botBubble: '#1e1e1e',
+      userBubbleBorder: '#2d7a4f',
+      botBubbleBorder: '#333333',
+      timestamp: '#888888',
+      sending: '#888888',
+      sent: '#0288d1',
+      error: '#d32f2f',
+      retryButton: '#ff1744',
+      markdownCode: 'rgba(255,255,255,0.1)',
+      divider: '#424242',
     },
   },
 } as const;

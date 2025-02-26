@@ -42,6 +42,11 @@ export const zh = {
     retry: '重试',
     error: '发送失败',
     holdToSpeak: '按住说话',
+    deleteSuccess: "已删除 {{count}} 条消息",
+    deleteFailed: "删除消息失败",
+    deleteConfirmTitle: "删除消息",
+    deleteConfirmMessage: "确定要删除选中的 {{count}} 条消息吗？",
+    selectedCount: "条消息已选择",
   },
   config: {
     title: '服务商配置',

@@ -1,4 +1,4 @@
-import { BaseMessageChunk, HumanMessage } from '@langchain/core/messages';
+import { BaseMessageChunk, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ModelProviderId } from '@/constants/ModelProviders';
 
@@ -7,8 +7,11 @@ export interface ModelConfig {
   apiKey: string;
   modelName: string;
   baseUrl?: string;
-  temperature?: number;
+  temperature: number;
   maxTokens?: number;
+  topP: number;
+  streamOutput: boolean;
+  systemPrompt?: string;
 }
 
 export interface TestModelResult {
@@ -28,18 +31,58 @@ export interface IModelProvider {
 
 export abstract class BaseProvider implements IModelProvider {
   protected model!: BaseChatModel;
+  protected systemMessage?: SystemMessage;
 
   abstract initialize(config: ModelConfig): void;
 
   async chat(messages: BaseMessageChunk[]): Promise<string> {
-    const response = await this.model.invoke(messages);
+    const messageList = this.systemMessage 
+      ? [this.systemMessage, ...messages]
+      : messages;
+    const response = await this.model.invoke(messageList);
     return response.content.toString();
   }
 
   async *stream(messages: BaseMessageChunk[]): AsyncGenerator<string> {
-    const stream = await this.model.stream(messages);
-    for await (const chunk of stream) {
-      yield chunk.content.toString();
+    try {
+      const messageList = this.systemMessage 
+        ? [this.systemMessage, ...messages]
+        : messages;
+   
+      // 获取流时增加类型断言或检查
+      const stream = await this.model.stream(messageList);
+      console.log('stream', stream);
+      
+      
+      if (!stream) {
+        throw new Error('No stream response received');
+      }
+  
+      // 检查流是否有效（示例代码，具体依赖 LangChain 实现）
+      if (typeof stream[Symbol.asyncIterator] !== 'function') {
+        throw new Error('Invalid stream response: not an async iterable');
+      }
+  
+      let receivedValidChunk = false;
+      for await (const chunk of stream) {
+        if (!chunk?.content) {
+          console.warn('Received empty chunk:', chunk);
+          continue;
+        }
+        receivedValidChunk = true;
+        yield chunk.content.toString();
+      }
+  
+      if (!receivedValidChunk) {
+        throw new Error('Stream ended without valid content');
+      }
+    } catch (error) {
+      console.error('Stream processing error:', error);
+      throw new Error(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to process stream response'
+      );
     }
   }
 

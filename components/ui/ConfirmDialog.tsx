@@ -14,6 +14,9 @@ interface Props {
   onConfirm: () => void;
   onCancel: () => void;
   variant?: 'danger' | 'normal';
+  confirmDisabled?: boolean;
+  confirmLoading?: boolean;
+  cancelDisabled?: boolean;
 }
 
 export const ConfirmDialog = ({
@@ -25,6 +28,9 @@ export const ConfirmDialog = ({
   onConfirm,
   onCancel,
   variant = 'normal',
+  confirmDisabled = false,
+  confirmLoading = false,
+  cancelDisabled = false,
 }: Props) => {
   const backgroundColor = useThemeColor({}, 'background');
 
@@ -39,6 +45,7 @@ export const ConfirmDialog = ({
         style={styles.overlay}
         activeOpacity={1}
         onPress={onCancel}
+        disabled={cancelDisabled}
       >
         <View style={[styles.dialog, { backgroundColor }]}>
           <ThemedText type='subtitle'>{title}</ThemedText>
@@ -48,6 +55,7 @@ export const ConfirmDialog = ({
               variant="secondary"
               onPress={onCancel}
               style={styles.button}
+              disabled={cancelDisabled}
             >
               {cancelText}
             </Button>
@@ -55,6 +63,8 @@ export const ConfirmDialog = ({
               variant={variant === 'danger' ? 'danger' : 'primary'}
               onPress={onConfirm}
               style={styles.button}
+              disabled={confirmDisabled}
+              isLoading={confirmLoading}
             >
               {confirmText}
             </Button>

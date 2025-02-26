@@ -42,6 +42,11 @@ export const en = {
     retry: 'Retry',
     error: 'Failed to send message',
     holdToSpeak: 'Hold to speak',
+    deleteSuccess: "Deleted {{count}} messages",
+    deleteFailed: "Failed to delete messages",
+    deleteConfirmTitle: "Delete Messages",
+    deleteConfirmMessage: "Are you sure you want to delete {{count}} selected messages?",
+    selectedCount: "selected"
   },
   config: {
     title: 'Provider Configuration',

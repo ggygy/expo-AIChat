@@ -36,6 +36,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputHeight, setInputHeight] = useState(40);
   const [contentHeight, setContentHeight] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -43,7 +44,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const inputColors = colors.input;
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'text');
-  const backgroundColor = useThemeColor({}, 'background');
   const shouldShowExpand = contentHeight > 80;
 
   const handleSend = () => {
@@ -93,6 +93,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const renderLeftIcon = () => {
     if (isExpanded) return null;
+    if (isFocused) return null;
     if (inputText.trim().length > 0) return null;
     
     return (
@@ -107,23 +108,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const renderRightIcons = () => {
-    if (isVoiceMode && !isExpanded) return null;
-
     return (
       <>
-        {!isExpanded && !inputText.trim().length && (
+        {!isExpanded && (
           <TouchableOpacity onPress={onFileUpload} style={styles.iconButton}>
             <Entypo name="upload" size={20} color={iconColor} />
           </TouchableOpacity>
         )}
         
-        {!isExpanded && shouldShowExpand && (
+        {!isVoiceMode && !isExpanded && shouldShowExpand && (
           <TouchableOpacity onPress={toggleExpand} style={styles.iconButton}>
             <FontAwesome5 name="expand-alt" size={20} color={iconColor} />
           </TouchableOpacity>
         )}
 
-        {(inputText.trim().length > 0 || isExpanded) && (
+        {(!isVoiceMode && inputText.trim().length > 0 || isExpanded) && (
           <TouchableOpacity 
             onPress={handleSend} 
             style={[
@@ -139,11 +138,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <View style={[styles.wrapper, { backgroundColor }]}>
+    <View style={styles.wrapper}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-        style={[styles.keyboardView, { backgroundColor }]}
+        style={styles.keyboardView}
       >
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
           <ThemedView style={styles.outerContainer}>
@@ -163,10 +162,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   <TouchableOpacity 
                     onPressIn={() => handleVoicePress('start')}
                     onPressOut={() => handleVoicePress('end')}
-                    style={styles.voiceButton}
+                    style={[styles.voiceButton, { backgroundColor: inputColors.background }]}
                     activeOpacity={0.5}
                   >
-                    <ThemedText>{i18n.t('chat.holdToSpeak')}</ThemedText>
+                    <ThemedText style={styles.voiceText}>
+                      {i18n.t('chat.holdToSpeak')}
+                    </ThemedText>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -192,7 +193,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
                       placeholderTextColor={inputColors.placeholder}
                       multiline
                       onContentSizeChange={handleContentSizeChange}
-                      onBlur={() => !isExpanded && setInputHeight(40)}
+                      onBlur={() => {
+                        !isExpanded && setInputHeight(40);
+                        setIsFocused(false);
+                      }}
+                      onFocus={() => setIsFocused(true)}
                     />
                   </View>
                 </TouchableWithoutFeedback>
@@ -220,6 +225,7 @@ const styles = StyleSheet.create({
   },
   outerContainer: {
     paddingHorizontal: 8,
+    backgroundColor: 'transparent',
     paddingVertical: 8,
   },
   container: {
@@ -234,7 +240,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flex: 1,
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 43,
   },
   input: {
     fontSize: 16,
@@ -251,9 +257,15 @@ const styles = StyleSheet.create({
   voiceButton: {
     flex: 1,
     height: 40,
-    justifyContent: 'center',
+    borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+  },
+  voiceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   expandedContainer: {
     position: 'relative',

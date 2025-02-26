@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -16,6 +16,7 @@ import { useLanguageStore } from '@/store/useLanguageStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { ThemedView } from '@/components/ThemedView';
 import { toastConfig } from '@/components/toastConfig';
+import { initDatabase } from '@/database';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -24,10 +25,11 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const themeMode = useThemeStore((state) => state.themeMode);
-  const [loaded] = useFonts({
+  const [loaded, setLoaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     Iconfont: require('../assets/fonts/iconfont.ttf'),
   });
+  const [dbInitialized, setDbInitialized] = useState(false);
 
   // 根据 themeMode 确定当前主题
   const currentTheme = useMemo(() => {
@@ -55,12 +57,23 @@ export default function RootLayout() {
   }), [currentTheme]);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    async function initialize() {
+      try {
+        if (loaded) {
+          await initDatabase();
+          setDbInitialized(true);
+          await SplashScreen.hideAsync();
+        }
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      }
     }
-  }, [loaded, currentLanguage, themeMode]);
 
-  if (!loaded) {
+    initialize();
+  }, [loaded]);
+
+  // 等待字体和数据库都加载完成
+  if (!loaded || !dbInitialized) {
     return null;
   }
 
