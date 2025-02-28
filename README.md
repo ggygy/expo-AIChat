@@ -25,6 +25,18 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## 安装依赖
+
+要使用 SSE 流式输出功能，需要安装 react-native-fetch-api：
+
+```bash
+npm install react-native-fetch-api
+# 或
+expo install react-native-fetch-api
+```
+
+这个库提供了增强的 fetch API，支持文本流和 SSE 连接，对于 AI 聊天应用中的流式输出非常有用。
+
 ## Get a fresh project
 
 When you're ready, run:

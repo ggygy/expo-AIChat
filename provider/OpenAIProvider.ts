@@ -2,6 +2,7 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { BaseProvider, ModelConfig } from "./BaseProvider";
 import { ChatOpenAI } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
+import { langchainFetchOptions } from "@/utils/langchainFetchAdapter";
 
 export class OpenAIProvider extends BaseProvider {
   initialize(config: ModelConfig): void {
@@ -13,7 +14,8 @@ export class OpenAIProvider extends BaseProvider {
       streaming: config.streamOutput,
       apiKey: config.apiKey,
       configuration: {
-        baseURL: config.baseUrl,
+        ...langchainFetchOptions,
+        baseURL: config.baseUrl
       }
     });
 

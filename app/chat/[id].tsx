@@ -1,71 +1,92 @@
-import React, { useLayoutEffect, useState, useCallback } from 'react';
+import React, { useLayoutEffect, useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { FontAwesome } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useBotStore } from '@/store/useBotStore';
-import { Message } from '@/constants/chat';
-import { messageDb } from '@/database';
-import { useFocusEffect } from '@react-navigation/native';
-import { useAIChat } from '@/hooks/useAIChat';
 import ChatInput from '@/components/chat/ChatInput';
-import MessageList from '@/components/chat/MessageList';
+import MessageList, { MessageListRef } from '@/components/chat/MessageList';
 import i18n from '@/i18n/i18n';
 
+// 导入自定义hooks
+import { useChatMessages } from '@/hooks/useChatMessages';
+import { useChatActions } from '@/hooks/useChatActions';
+import { useChatSelection } from '@/hooks/useChatSelection';
+
 export default function ChatScreen() {
+    // 获取参数和基础设置
     const { id } = useLocalSearchParams<{ id: string }>();
     const backgroundColor = useThemeColor({}, 'cardBackground');
     const iconColor = useThemeColor({}, 'text');
     const errorColor = useThemeColor({}, 'error');
     const navigation = useNavigation();
     const router = useRouter();
+    const messageListRef = useRef<MessageListRef>(null);
     const getBotInfo = useBotStore(state => state.getBotInfo);
     const botInfo = getBotInfo(id);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [page, setPage] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
-    const pageSize = 20;
-    const [isSelectMode, setIsSelectMode] = useState(false);
-    const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const { sendMessage, isGenerating, setIsGenerating } = useAIChat(id);
-    const updateBotStats = useBotStore(state => state.updateBotStats);
+    
+    // 使用消息管理hook
+    const { 
+        messages, 
+        setMessages,
+        isLoading, 
+        handleLoadMore, 
+        totalMessages, 
+        setTotalMessages,
+        deleteMessages,
+        isFirstLoadRef,
+        messagesLengthRef,
+        manualRefresh // 新增的手动刷新方法
+    } = useChatMessages(id);
 
-    const loadMessages = useCallback(async (pageNum: number) => {
-        if (isLoading || (!hasMore && pageNum > 0)) return;
-        setIsLoading(true);
-        try {
-            const newMessages = await messageDb.getMessages(id, pageSize, pageNum * pageSize);
-            if (newMessages.length < pageSize) {
-                setHasMore(false);
-            }
-            if (pageNum === 0) {
-                setMessages(newMessages);
-            } else {
-                setMessages(prev => [...prev, ...newMessages]);
-            }
-            setPage(pageNum);
-        } catch (error) {
-            console.error('Failed to load messages:', error);
-        } finally {
-            setIsLoading(false);
+    // 使用消息操作hook
+    const {
+        handleSendMessage,
+        handleRetry,
+        handleStopGeneration,
+        handleVoiceInput,
+        handleFileUpload,
+        isGenerating
+    } = useChatActions(id, messages, setMessages, totalMessages, setTotalMessages);
+
+    // 使用消息选择hook
+    const {
+        isSelectMode,
+        setIsSelectMode,
+        selectedMessages,
+        setSelectedMessages, // 使用原始的setter
+        showDeleteDialog,
+        setShowDeleteDialog,
+        handleCancelSelect,
+        handleLongPress,
+        handleSelect,
+        handleDeleteConfirm
+    } = useChatSelection(deleteMessages);
+
+    // 监听消息变化，滚动到底部
+    useEffect(() => {
+        if (messages.length > messagesLengthRef.current) {
+            // 延迟滚动以确保 UI 已更新
+            const timer = setTimeout(() => {
+                messageListRef.current?.scrollToEnd(true);
+            }, 100);
+            return () => clearTimeout(timer);
         }
-    }, [id, isLoading, hasMore]);
+    }, [messages.length]);
 
-    const handleLoadMore = useCallback(() => {
-        if (hasMore && !isLoading) {
-            loadMessages(page + 1);
+    // 首次加载后，滚动到底部
+    useEffect(() => {
+        if (isFirstLoadRef.current && messages.length > 0) {
+            isFirstLoadRef.current = false;
+            const timer = setTimeout(() => {
+                messageListRef.current?.scrollToEnd(false);
+            }, 300);
+            return () => clearTimeout(timer);
         }
-    }, [loadMessages, page, hasMore, isLoading]);
+    }, [messages]);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadMessages(0);
-        }, [loadMessages])
-    );
-
+    // 设置导航栏配置
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'center',
@@ -81,12 +102,20 @@ export default function ChatScreen() {
                         <FontAwesome name="trash" size={20} color={errorColor} />
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity 
-                        onPress={() => router.push(`/editBot/${id}`)}
-                        style={styles.headerButton}
-                    >
-                        <FontAwesome name="navicon" size={16} color={iconColor} />
-                    </TouchableOpacity>
+                    <View style={styles.headerButtonContainer}>
+                        <TouchableOpacity 
+                            onPress={manualRefresh}
+                            style={styles.headerButton}
+                        >
+                            <FontAwesome name="refresh" size={16} color={iconColor} />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            onPress={() => router.push(`/editBot/${id}`)}
+                            style={styles.headerButton}
+                        >
+                            <FontAwesome name="navicon" size={16} color={iconColor} />
+                        </TouchableOpacity>
+                    </View>
                 )
             ),
             headerLeft: () => (
@@ -100,108 +129,57 @@ export default function ChatScreen() {
                 ) : undefined
             ),
         });
-    }, [navigation, botInfo, iconColor, id, isSelectMode, selectedMessages.size]);
+    }, [
+        navigation, botInfo, iconColor, errorColor, id, 
+        isSelectMode, selectedMessages.size, handleCancelSelect, router,
+        manualRefresh // 添加新依赖
+    ]);
 
-    const handleSendMessage = async (text: string) => {
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: text,
-            timestamp: Date.now(),
-            contentType: 'text',
-            status: 'sent'
-        };
-        
-        try {
-            await sendMessage(newMessage, (updatedMessages) => {
-                setMessages(prev => {
-                    const filtered = prev.filter(msg => 
-                        !updatedMessages.find(m => m.id === msg.id)
-                    );
-                    const newMessages = [...filtered, ...updatedMessages];
-                    
-                    // 更新机器人的最后消息预览和时间戳
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage) {
-                        updateBotStats(id, {
-                            lastMessageAt: lastMessage.timestamp,
-                            lastMessagePreview: lastMessage.content.slice(0, 50),
-                            messagesCount: newMessages.length
-                        });
-                    }
-                    
-                    return newMessages;
-                });
-            });
-        } catch (error) {
-            console.error('Failed to handle message:', error);
-        }
-    };
-
-    const handleRetry = (messageId: string) => {
-        // TODO: 实现重试逻辑
-    };
-
-    const handleVoiceInput = () => {
-        console.log('Voice input activated');
-        // TODO: 实现语音输入逻辑
-    };
-
-    const handleFileUpload = () => {
-        console.log('File upload triggered');
-        // TODO: 实现文件上传逻辑
-    };
-
-    const handleDeleteMessages = useCallback(async (messageIds: string[]) => {
-        try {
-            await Promise.all(messageIds.map(id => messageDb.deleteMessage(id)));
-            setMessages(prev => prev.filter(msg => !messageIds.includes(msg.id)));
-        } catch (error) {
-            console.error('Failed to delete messages:', error);
-        }
-    }, []);
-
-    const handleStopGeneration = useCallback(() => {
-        setIsGenerating(false);
-        // TODO: 实际停止 API 调用的逻辑
-    }, []);
-
-    const handleCancelSelect = useCallback(() => {
-        requestAnimationFrame(() => {
-            setIsSelectMode(false);
-            setSelectedMessages(new Set());
-        });
-    }, []);
-
-    useLayoutEffect(() => {
-        if (!isSelectMode) {
-            setSelectedMessages(new Set());
-        }
-    }, [isSelectMode]);
-
-    const dismissKeyboard = () => {
+    // 键盘消失
+    const dismissKeyboard = useCallback(() => {
         Keyboard.dismiss();
-    };
+    }, []);
+
+    // 使用useMemo封装传递给MessageList的所有props
+    const messageListProps = useMemo(() => ({
+        messages,
+        onRetry: handleRetry,
+        onLoadMore: handleLoadMore,
+        isLoading,
+        onDeleteMessages: deleteMessages,
+        onStopGeneration: handleStopGeneration,
+        isGenerating,
+        setShowDeleteDialog,
+        handleCancelSelect,
+        isSelectMode,
+        selectedMessages,
+        showDeleteDialog,
+        setIsSelectMode,
+        setSelectedMessages,
+    }), [
+        messages,
+        handleRetry,
+        handleLoadMore,
+        isLoading,
+        deleteMessages,
+        handleStopGeneration,
+        isGenerating,
+        setShowDeleteDialog,
+        handleCancelSelect,
+        isSelectMode,
+        selectedMessages,
+        showDeleteDialog,
+        setIsSelectMode,
+        setSelectedMessages, // 更新依赖项
+    ]);
 
     return (
         <View style={[styles.safeArea, { backgroundColor }]}>
             <TouchableWithoutFeedback onPress={dismissKeyboard}>
                 <View style={[styles.container, { backgroundColor }]}>
                     <MessageList
-                        messages={messages}
-                        onRetry={handleRetry}
-                        onLoadMore={handleLoadMore}
-                        isLoading={isLoading}
-                        onDeleteMessages={handleDeleteMessages}
-                        onStopGeneration={handleStopGeneration}
-                        isGenerating={isGenerating}
-                        setShowDeleteDialog={setShowDeleteDialog}
-                        handleCancelSelect={handleCancelSelect}
-                        isSelectMode={isSelectMode}
-                        selectedMessages={selectedMessages}
-                        showDeleteDialog={showDeleteDialog}
-                        setIsSelectMode={setIsSelectMode}
-                        setSelectedMessages={setSelectedMessages}
+                        ref={messageListRef}
+                        {...messageListProps}
                     />
                 </View>
             </TouchableWithoutFeedback>
@@ -225,6 +203,10 @@ const styles = StyleSheet.create({
     },
     messageList: {
         flex: 1,
+    },
+    headerButtonContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     headerButton: {
         padding: 10,

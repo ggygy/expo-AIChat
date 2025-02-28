@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState, useMemo } from 'react';
+import React, { memo, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Message } from '@/constants/chat';
@@ -27,7 +27,11 @@ interface MessageListProps {
   setSelectedMessages: (value: Set<string>) => void;
 }
 
-const MessageList: React.FC<MessageListProps> = ({
+export interface MessageListRef {
+  scrollToEnd: (animated?: boolean) => void;
+}
+
+const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   messages,
   onRetry,
   onLoadMore,
@@ -42,9 +46,21 @@ const MessageList: React.FC<MessageListProps> = ({
   showDeleteDialog,
   setIsSelectMode,
   setSelectedMessages,
-}) => {
+}, ref) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const iconColor = useThemeColor({}, 'text');
+  const listRef = useRef<FlashList<Message>>(null);
+
+  useImperativeHandle(ref, () => ({
+    scrollToEnd: (animated = true) => {
+      if (messages.length > 0) {
+        listRef.current?.scrollToIndex({
+          index: messages.length - 1,
+          animated,
+        });
+      }
+    }
+  }));
 
   const handleLongPress = useCallback((message: Message) => {
     requestAnimationFrame(() => {
@@ -94,9 +110,8 @@ const MessageList: React.FC<MessageListProps> = ({
   const handleCancelDialog = useCallback(() => {
     if (!isDeleting) {
       setShowDeleteDialog(false);
-      handleCancelSelect();
     }
-  }, [isDeleting, handleCancelSelect]);
+  }, [isDeleting]);
 
   const selectedMessagesStr = useMemo(() => 
     JSON.stringify(Array.from(selectedMessages)) + isSelectMode, 
@@ -114,7 +129,11 @@ const MessageList: React.FC<MessageListProps> = ({
     />
   ), [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode]);
 
-  const renderFooter = useCallback(() => {
+  // 使用 useMemo 缓存 footer 组件，避免不必要的重渲染和抖动
+  const footerComponent = useMemo(() => {
+    // 只有在真正需要显示加载或停止按钮时才返回内容
+    if (!isLoading && !isGenerating) return null;
+    
     return (
       <View style={styles.footerContainer}>
         {isLoading && (
@@ -137,15 +156,17 @@ const MessageList: React.FC<MessageListProps> = ({
   return (
     <View style={styles.container}>
       <FlashList
+        ref={listRef}
         data={messages}
         renderItem={renderMessage}
         estimatedItemSize={100}
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
+        ListFooterComponent={footerComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
         extraData={selectedMessagesStr}
+        initialScrollIndex={messages.length > 0 ? messages.length - 1 : undefined}
       />
 
       <ConfirmDialog
@@ -161,7 +182,7 @@ const MessageList: React.FC<MessageListProps> = ({
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -173,6 +194,7 @@ const styles = StyleSheet.create({
   footerContainer: {
     padding: 16,
     alignItems: 'center',
+    height: 72, // 固定高度，避免抖动
   },
   loadingFooter: {
     paddingVertical: 16,

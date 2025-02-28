@@ -8,6 +8,11 @@ export const zh = {
     select: '请选择',
     close: '关闭',
     delete: '删除',
+    success: '成功',
+    copy: '复制',
+    copySuccess: '已复制到剪贴板',
+    copyError: '复制失败',
+    unknownError: '未知错误',
   },
   tabs: {
     home: '首页',
@@ -47,6 +52,8 @@ export const zh = {
     deleteConfirmTitle: "删除消息",
     deleteConfirmMessage: "确定要删除选中的 {{count}} 条消息吗？",
     selectedCount: "条消息已选择",
+    generateError: '生成回复时出错，请重试',
+    errorResponse: '很抱歉，生成回复时出现了错误。',
   },
   config: {
     title: '服务商配置',

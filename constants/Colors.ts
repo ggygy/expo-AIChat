@@ -77,7 +77,7 @@ export const Colors = {
     // Chat 页面颜色
     chat: {
       userBubble: '#dcf8c6',
-      botBubble: '#f5f5f5',
+      botBubble: '#fff',
       userBubbleBorder: '#c7e6b8',
       botBubbleBorder: '#e0e0e0',
       timestamp: '#999999',
@@ -87,6 +87,14 @@ export const Colors = {
       retryButton: '#ff5252',
       markdownCode: 'rgba(0,0,0,0.05)',
       divider: '#e0e0e0',
+      tableBorder: '#e0e0e0',
+      tableHeaderBg: '#f5f5f5',
+      blockquoteBg: 'rgba(0,0,0,0.03)',
+      actionButtonBg: 'rgba(0,0,0,0.03)',
+      actionButtonActiveBg: 'rgba(0,0,0,0.08)',
+      actionButtonText: '#333333',
+      selectedBubbleBg: 'rgba(33, 150, 243, 0.05)',
+      bubbleShadowColor: 'rgba(0,0,0,0.08)',
     },
   },
   dark: {
@@ -169,6 +177,15 @@ export const Colors = {
       retryButton: '#ff1744',
       markdownCode: 'rgba(255,255,255,0.1)',
       divider: '#424242',
+      tableBorder: '#424242',
+      tableHeaderBg: '#2c2c2c',
+      blockquoteBg: 'rgba(255,255,255,0.03)',
+      // 新增设置
+      actionButtonBg: 'rgba(255,255,255,0.05)',
+      actionButtonActiveBg: 'rgba(255,255,255,0.1)',
+      actionButtonText: '#e0e0e0',
+      selectedBubbleBg: 'rgba(66, 165, 245, 0.1)',
+      bubbleShadowColor: 'rgba(0,0,0,0.2)',
     },
   },
 } as const;

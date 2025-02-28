@@ -3,7 +3,7 @@ import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity } f
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { MODEL_PROVIDERS, ModelProviderId } from '@/constants/ModelProviders';
+import { ModelProviderId } from '@/constants/ModelProviders';
 import { useProviderStore } from '@/store/useProviderStore';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import Toast from 'react-native-toast-message';
 import { Picker } from '@/components/ui/Picker';
 import { ProviderFactory } from '@/provider/ProviderFactory';
+import { showError, showInfo, showSuccess } from '@/utils/toast';
 
 interface Props {
   providerId: string;
@@ -62,26 +63,17 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
 
   const handleTestApi = async () => {
     if (!config.apiKey || !config.baseUrl) {
-      Toast.show({
-        type: 'error',
-        text1: i18n.t('config.apiKey') + '/' + i18n.t('config.baseUrl') + i18n.t('common.error'),
-      });
+      showError(i18n.t('config.apiKey') + '/' + i18n.t('config.baseUrl') + i18n.t('common.error'));
       return;
     }
 
     if (!selectedModelId) {
-      Toast.show({
-        type: 'error',
-        text1: i18n.t('config.selectModelFirst'),
-      });
+      showError(i18n.t('config.selectModelFirst'));
       return;
     }
 
     setIsTesting(true);
-    Toast.show({
-      type: 'info',
-      text1: i18n.t('config.testing'),
-    });
+    showInfo(i18n.t('config.testing'));
 
     try {
       const provider = ProviderFactory.createProvider(providerId as ModelProviderId);
@@ -97,10 +89,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
       setIsTesting(false);
       
       if (result.success) {
-        Toast.show({
-          type: 'success',
-          text1: i18n.t('config.testSuccess'),
-        });
+        showSuccess(i18n.t('config.testSuccess'));
       } else {
         const errorCode = result.error?.code || 'unknown';
         Toast.show({

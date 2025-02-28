@@ -17,6 +17,8 @@ import { useThemeStore } from '@/store/useThemeStore';
 import { ThemedView } from '@/components/ThemedView';
 import { toastConfig } from '@/components/toastConfig';
 import { initDatabase } from '@/database';
+import { configureLangChainFetch } from '@/utils/langchainFetchAdapter';
+
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -60,6 +62,7 @@ export default function RootLayout() {
     async function initialize() {
       try {
         if (loaded) {
+          configureLangChainFetch(); // 应用 fetch polyfill
           await initDatabase();
           setDbInitialized(true);
           await SplashScreen.hideAsync();

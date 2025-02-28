@@ -30,7 +30,7 @@ interface BotStore {
   updateBot: (id: string, updates: Partial<BotConfig>) => void;
   deleteBot: (id: string) => void;
   getBotInfo: (id: string) => BotConfig | null;
-  updateBotStats: (id: string, stats: Partial<Pick<BotConfig, 'lastMessageAt' | 'messagesCount'>>) => void;
+  updateBotStats: (id: string, stats: Partial<Pick<BotConfig, 'lastMessageAt' | 'lastMessagePreview' | 'messagesCount'>>) => void;
   getAvailableBots: () => BotConfig[];
   sortBots: (sortBy: 'name' | 'createdAt' | 'lastMessageAt') => void;
 }

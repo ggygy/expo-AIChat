@@ -1,18 +1,21 @@
 import { BaseProvider, ModelConfig } from "./BaseProvider";
 import { ChatDeepSeek } from '@langchain/deepseek';
 import { SystemMessage } from '@langchain/core/messages';
+import { langchainFetchOptions } from '@/utils/langchainFetchAdapter';
 
 export class DeepSeekProvider extends BaseProvider {
   initialize(config: ModelConfig): void {
     this.model = new ChatDeepSeek({
       temperature: config.temperature,
       maxTokens: config.maxTokens,
-      modelName: config.modelName,
+      model: config.modelName,
       topP: config.topP,
       streaming: config.streamOutput,
       apiKey: config.apiKey,
       configuration: {
-        baseURL: config.baseUrl,
+        ...langchainFetchOptions,
+        fetch: langchainFetchOptions.fetch,
+        baseURL: config.baseUrl
       }
     });
 

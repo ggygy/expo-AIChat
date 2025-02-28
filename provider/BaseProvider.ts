@@ -1,16 +1,17 @@
-import { BaseMessageChunk, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ModelProviderId } from '@/constants/ModelProviders';
+import { IterableReadableStream } from '@langchain/core/dist/utils/stream';
 
 export interface ModelConfig {
   vendor: ModelProviderId;
   apiKey: string;
   modelName: string;
   baseUrl?: string;
-  temperature: number;
+  temperature?: number;
   maxTokens?: number;
-  topP: number;
-  streamOutput: boolean;
+  topP?: number;
+  streamOutput?: boolean;
   systemPrompt?: string;
 }
 
@@ -24,8 +25,8 @@ export interface TestModelResult {
 
 export interface IModelProvider {
   initialize(config: ModelConfig): void;
-  chat(messages: BaseMessageChunk[]): Promise<string>;
-  stream(messages: BaseMessageChunk[]): AsyncGenerator<string>;
+  chat(messages: BaseMessage[]): Promise<string>;
+  stream(messages: BaseMessage[]): Promise<IterableReadableStream<any>>;
   testModel(): Promise<TestModelResult>;
 }
 
@@ -35,7 +36,7 @@ export abstract class BaseProvider implements IModelProvider {
 
   abstract initialize(config: ModelConfig): void;
 
-  async chat(messages: BaseMessageChunk[]): Promise<string> {
+  async chat(messages: BaseMessage[]): Promise<string> {
     const messageList = this.systemMessage 
       ? [this.systemMessage, ...messages]
       : messages;
@@ -43,47 +44,11 @@ export abstract class BaseProvider implements IModelProvider {
     return response.content.toString();
   }
 
-  async *stream(messages: BaseMessageChunk[]): AsyncGenerator<string> {
-    try {
-      const messageList = this.systemMessage 
-        ? [this.systemMessage, ...messages]
-        : messages;
-   
-      // 获取流时增加类型断言或检查
-      const stream = await this.model.stream(messageList);
-      console.log('stream', stream);
-      
-      
-      if (!stream) {
-        throw new Error('No stream response received');
-      }
-  
-      // 检查流是否有效（示例代码，具体依赖 LangChain 实现）
-      if (typeof stream[Symbol.asyncIterator] !== 'function') {
-        throw new Error('Invalid stream response: not an async iterable');
-      }
-  
-      let receivedValidChunk = false;
-      for await (const chunk of stream) {
-        if (!chunk?.content) {
-          console.warn('Received empty chunk:', chunk);
-          continue;
-        }
-        receivedValidChunk = true;
-        yield chunk.content.toString();
-      }
-  
-      if (!receivedValidChunk) {
-        throw new Error('Stream ended without valid content');
-      }
-    } catch (error) {
-      console.error('Stream processing error:', error);
-      throw new Error(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to process stream response'
-      );
-    }
+  async stream(messages: BaseMessage[]): Promise<IterableReadableStream<any>> {
+    const messageList = this.systemMessage 
+      ? [this.systemMessage, ...messages]
+      : messages;
+    return this.model.stream(messageList);
   }
 
   async testModel(): Promise<TestModelResult> {
