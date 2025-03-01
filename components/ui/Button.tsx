@@ -169,10 +169,26 @@ export const Button: React.FC<ButtonProps> = ({
   );
 
   const renderContent = () => {
-    if (typeof children === 'string') {
-      return <Text style={textStyles}>{children}</Text>;
+    if (isLoading) {
+      return (
+        <View style={styles.contentContainer}>
+          <LoadingIndicator />
+          {loadingText && <Text style={textStyles}>{loadingText}</Text>}
+        </View>
+      );
     }
-    return <View>{children}</View>;
+    
+    return (
+      <View style={styles.contentContainer}>
+        {leftIcon}
+        {typeof children === 'string' ? (
+          <Text style={textStyles}>{children}</Text>
+        ) : (
+          children
+        )}
+        {rightIcon}
+      </View>
+    );
   };
 
   return (
@@ -185,18 +201,7 @@ export const Button: React.FC<ButtonProps> = ({
       delayLongPress={delayLongPress}
       {...props}
     >
-      {isLoading ? (
-        <>
-          <LoadingIndicator />
-          {loadingText && <Text style={textStyles}>{loadingText}</Text>}
-        </>
-      ) : (
-        <>
-          {leftIcon}
-          {renderContent()}
-          {rightIcon}
-        </>
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 };
@@ -254,5 +259,10 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     marginRight: 8,
+  },
+  contentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

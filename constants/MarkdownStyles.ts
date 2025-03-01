@@ -54,7 +54,6 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
     colorScheme, 
     textColor, 
     tintColor, 
-    codeBackgroundColor,
     tableBorderColor = colorScheme === 'dark' ? '#424242' : '#E0E0E0',
     tableHeaderBackgroundColor = colorScheme === 'dark' ? '#333333' : '#f5f5f5',
     blockquoteBackgroundColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
@@ -62,8 +61,6 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
     fontFamily = Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   } = options;
 
-  // 获取当前主题的代码颜色
-  const codeTheme = colorScheme === 'dark' ? MarkdownCodeTheme.dark : MarkdownCodeTheme.light;
   const baseFontSize = 15 * fontSizeMultiplier;
 
   return {
@@ -86,36 +83,6 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
     link: { 
       color: tintColor, 
       textDecorationLine: 'underline' as TextStyle['textDecorationLine']
-    } as TextStyle,
-    
-    // 代码块样式
-    code_block: { 
-      backgroundColor: codeTheme.background, 
-      padding: 12,
-      borderRadius: 8,
-      marginVertical: 10,
-      fontFamily: fontFamily,
-      fontSize: baseFontSize * 0.9,
-    } as TextStyle,
-    
-    // 行内代码样式
-    code_inline: { 
-      backgroundColor: codeBackgroundColor, 
-      paddingHorizontal: 5,
-      paddingVertical: 2,
-      borderRadius: 4,
-      fontFamily: fontFamily,
-      color: codeTheme.function,
-      fontSize: baseFontSize * 0.9,
-    } as TextStyle,
-    
-    // 代码围栏样式
-    fence: { 
-      backgroundColor: codeTheme.background, 
-      padding: 12,
-      borderRadius: 8,
-      marginVertical: 10,
-      fontFamily: fontFamily,
     } as TextStyle,
     
     // 列表样式

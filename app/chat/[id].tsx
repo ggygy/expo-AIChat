@@ -37,7 +37,9 @@ export default function ChatScreen() {
         deleteMessages,
         isFirstLoadRef,
         messagesLengthRef,
-        manualRefresh // 新增的手动刷新方法
+        manualRefresh,
+        shouldScrollToBottom, // 获取滚动标志
+        setShouldScrollToBottom // 获取设置滚动标志的方法
     } = useChatMessages(id);
 
     // 使用消息操作hook
@@ -64,27 +66,58 @@ export default function ChatScreen() {
         handleDeleteConfirm
     } = useChatSelection(deleteMessages);
 
-    // 监听消息变化，滚动到底部
+    // 监控消息状态，不再需要基于消息长度自动滚动
+    // 实际的滚动逻辑已经在 MessageList 组件内部处理
     useEffect(() => {
-        if (messages.length > messagesLengthRef.current) {
-            // 延迟滚动以确保 UI 已更新
-            const timer = setTimeout(() => {
-                messageListRef.current?.scrollToEnd(true);
-            }, 100);
-            return () => clearTimeout(timer);
+        // 仅第一次进入页面时记录日志
+        if (isFirstLoadRef.current && messages.length > 0) {
+            console.log('首次加载完成，有消息数量:', messages.length);
         }
-    }, [messages.length]);
+    }, [messages.length, isFirstLoadRef]);
 
     // 首次加载后，滚动到底部
     useEffect(() => {
         if (isFirstLoadRef.current && messages.length > 0) {
             isFirstLoadRef.current = false;
             const timer = setTimeout(() => {
-                messageListRef.current?.scrollToEnd(false);
+                messageListRef.current?.scrollToEnd(true);
             }, 300);
             return () => clearTimeout(timer);
         }
     }, [messages]);
+
+    // 优化：确保首次进入聊天页面时立即滚动到最新消息
+    useEffect(() => {
+        // 当消息加载完成后滚动到底部
+        if (messages.length > 0 && !isLoading) {
+            const timer = setTimeout(() => {
+                messageListRef.current?.scrollToEnd(false);
+                // 双保险：强制标记为应该滚动到底部
+                if (setShouldScrollToBottom) {
+                    setShouldScrollToBottom(true);
+                }
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [messages.length, isLoading, setShouldScrollToBottom]);
+    
+    // 当发送新消息后，确保滚动到底部
+    const handleSendMessageWithScroll = useCallback((text: string) => {
+        // 先设置滚动标志
+        if (setShouldScrollToBottom) {
+            setShouldScrollToBottom(true);
+        }
+        
+        // 然后发送消息
+        const result = handleSendMessage(text);
+        
+        // 延迟执行滚动，确保新消息已渲染
+        setTimeout(() => {
+            messageListRef.current?.scrollToEnd(true);
+        }, 100);
+        
+        return result;
+    }, [handleSendMessage, setShouldScrollToBottom]);
 
     // 设置导航栏配置
     useLayoutEffect(() => {
@@ -156,6 +189,9 @@ export default function ChatScreen() {
         showDeleteDialog,
         setIsSelectMode,
         setSelectedMessages,
+        // 添加新的props
+        shouldScrollToBottom,
+        setShouldScrollToBottom
     }), [
         messages,
         handleRetry,
@@ -171,6 +207,9 @@ export default function ChatScreen() {
         showDeleteDialog,
         setIsSelectMode,
         setSelectedMessages, // 更新依赖项
+        // 添加新的依赖
+        shouldScrollToBottom,
+        setShouldScrollToBottom
     ]);
 
     return (
@@ -185,7 +224,7 @@ export default function ChatScreen() {
             </TouchableWithoutFeedback>
             {!isSelectMode && (
                 <ChatInput
-                    onSendMessage={handleSendMessage}
+                    onSendMessage={handleSendMessageWithScroll} // 使用封装后的方法
                     onVoiceInput={handleVoiceInput}
                     onFileUpload={handleFileUpload}
                 />

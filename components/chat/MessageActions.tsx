@@ -29,60 +29,33 @@ const MessageActions: React.FC<MessageActionsProps> = ({
   showBottomRetryButton = false,
   style,
 }) => {
-  // 渲染内部操作按钮区域
-  const renderInlineActions = () => {
-    return (
-      <View style={[styles.actionContainer, { borderTopColor: dividerColor }, style]}>
-        <Button
-          variant="ghost"
-          size="small"
-          leftIcon={<FontAwesome name="copy" size={14} color={actionButtonColor} />}
-          onPress={onCopy}
-          style={styles.actionButton}
-          textStyle={{ color: actionButtonColor }}
-        >
-          {i18n.t('common.copy')}
-        </Button>
-        
-        {isError && onRetry && (
-          <Button
-            variant="outline"
-            size="small"
-            leftIcon={<FontAwesome name="refresh" size={14} color={retryButtonColor} />}
-            onPress={onRetry}
-            style={[styles.actionButton, { borderColor: retryButtonColor }]}
-            textStyle={{ color: retryButtonColor }}
-          >
-            {i18n.t('common.retry')}
-          </Button>
-        )}
-      </View>
-    );
-  };
 
-  // 渲染底部独立的重试按钮
-  const renderBottomRetryButton = () => {
-    if (!showBottomRetryButton || !isError || !onRetry) return null;
-    
-    return (
-      <View style={styles.bottomRetryContainer}>
+  return (
+    <View style={[styles.actionContainer, { borderTopColor: dividerColor }, style]}>
+      <Button
+        variant="secondary"
+        size="small"
+        leftIcon={<FontAwesome name="copy" size={13} color={actionButtonColor} />}
+        onPress={onCopy}
+        style={styles.actionButton}
+        textStyle={{ color: actionButtonColor}}
+      >
+        {i18n.t('common.copy')}
+      </Button>
+
+      {showBottomRetryButton && onRetry && (
         <Button
-          variant="primary"
+          variant="secondary"
           size="small"
-          leftIcon={<FontAwesome name="refresh" size={14} color="#fff" />}
+          leftIcon={<FontAwesome name="refresh" size={13} color={retryButtonColor} />}
           onPress={onRetry}
+          style={[styles.actionButton, { borderColor: retryButtonColor }]}
+          textStyle={{ color: retryButtonColor}}
         >
           {i18n.t('common.retry')}
         </Button>
-      </View>
-    );
-  };
-
-  return (
-    <>
-      {renderInlineActions()}
-      {renderBottomRetryButton()}
-    </>
+      )}
+    </View>
   );
 };
 
@@ -93,13 +66,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
-    marginTop: 12,
+    paddingTop: 6,
+    marginTop: 6,
   },
   actionButton: {
     marginLeft: 8,
     paddingHorizontal: 10,
-    height: 36,
   },
   bottomRetryContainer: {
     alignItems: 'center',
@@ -107,6 +79,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     width: '100%',
   },
+  icon: {
+    marginRight: 5,
+    marginTop: 2,
+  }
 });
 
 export default MessageActions;

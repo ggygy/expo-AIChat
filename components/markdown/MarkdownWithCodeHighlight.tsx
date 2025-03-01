@@ -14,8 +14,6 @@ const MarkdownWithCodeHighlight = ({ children, style, ...rest }: Props) => {
   // 创建自定义规则
   const customRules = {
     fence: (node: any, children: any, parent: any, styles: any) => {
-      console.log('fence', node);
-      
       return (
         <CodeBlock
           key={node.key}

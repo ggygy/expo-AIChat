@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { memo, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Message } from '@/constants/chat';
@@ -9,6 +9,7 @@ import { TouchableOpacity } from 'react-native-gesture-handler';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import i18n from '@/i18n/i18n';
 import Toast from 'react-native-toast-message';
+import { useMessageScroll } from '@/hooks/useMessageScroll';
 
 interface MessageListProps {
   messages: Message[];
@@ -25,6 +26,8 @@ interface MessageListProps {
   showDeleteDialog: boolean;
   setIsSelectMode: (value: boolean) => void;
   setSelectedMessages: (value: Set<string>) => void;
+  shouldScrollToBottom?: { current: boolean };
+  setShouldScrollToBottom?: (value: boolean) => void;
 }
 
 export interface MessageListRef {
@@ -46,29 +49,40 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   showDeleteDialog,
   setIsSelectMode,
   setSelectedMessages,
+  shouldScrollToBottom,
+  setShouldScrollToBottom,
 }, ref) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const iconColor = useThemeColor({}, 'text');
   const listRef = useRef<FlashList<Message>>(null);
-
+  
+  // 使用滚动逻辑 Hook
+  const {
+    isScrolling,
+    scrollToEnd,
+    handleViewableItemsChanged,
+    handleScroll,
+    handleScrollBeginDrag,
+    handleScrollEndDrag,
+    handleMomentumScrollEnd,
+    handleBeforeLoadMore,
+    viewabilityConfig
+  } = useMessageScroll(messages, listRef, shouldScrollToBottom, setShouldScrollToBottom);
+  
+  // 暴露滚动方法给父组件
   useImperativeHandle(ref, () => ({
-    scrollToEnd: (animated = true) => {
-      if (messages.length > 0) {
-        listRef.current?.scrollToIndex({
-          index: messages.length - 1,
-          animated,
-        });
-      }
-    }
+    scrollToEnd
   }));
-
+  
+  // 消息长按事件 - 进入选择模式
   const handleLongPress = useCallback((message: Message) => {
     requestAnimationFrame(() => {
       setIsSelectMode(true);
       setSelectedMessages(new Set([message.id]));
     });
   }, [setIsSelectMode, setSelectedMessages]);
-
+  
+  // 消息点击事件 - 在选择模式下选择/取消选择消息
   const handleSelect = useCallback((message: Message) => {
     requestAnimationFrame(() => {
       setSelectedMessages(prev => {
@@ -82,7 +96,8 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       });
     });
   }, [setSelectedMessages]);
-
+  
+  // 确认删除选中的消息
   const handleDeleteConfirm = useCallback(async () => {
     if (selectedMessages.size > 0) {
       setIsDeleting(true);
@@ -106,18 +121,21 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       }
     }
   }, [selectedMessages, onDeleteMessages, handleCancelSelect]);
-
+  
+  // 取消删除对话框
   const handleCancelDialog = useCallback(() => {
     if (!isDeleting) {
       setShowDeleteDialog(false);
     }
   }, [isDeleting]);
-
+  
+  // 创建用于比较的选中消息字符串
   const selectedMessagesStr = useMemo(() => 
     JSON.stringify(Array.from(selectedMessages)) + isSelectMode, 
     [selectedMessages, isSelectMode]
   );
-
+  
+  // 渲染单个消息项
   const renderMessage = useCallback(({ item }: { item: Message }) => (
     <MessageCard
       message={item}
@@ -128,10 +146,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       selectable={isSelectMode}
     />
   ), [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode]);
-
-  // 使用 useMemo 缓存 footer 组件，避免不必要的重渲染和抖动
+  
+  // 列表底部加载指示器
   const footerComponent = useMemo(() => {
-    // 只有在真正需要显示加载或停止按钮时才返回内容
     if (!isLoading && !isGenerating) return null;
     
     return (
@@ -152,7 +169,26 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       </View>
     );
   }, [isLoading, isGenerating, onStopGeneration, iconColor]);
-
+  
+  // 处理加载更多消息 - 结合滚动优化
+  const handleLoadMore = useCallback(() => {
+    if (!isLoading && !isScrolling) {
+      handleBeforeLoadMore();
+      onLoadMore?.();
+    }
+  }, [onLoadMore, isLoading, isScrolling, handleBeforeLoadMore]);
+  
+  // 添加初始加载后的效果来滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      // 在组件挂载后及消息变化时尝试滚动
+      const timer = setTimeout(() => {
+        scrollToEnd(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []); // 空依赖数组确保只在挂载时执行一次
+  
   return (
     <View style={styles.container}>
       <FlashList
@@ -160,13 +196,24 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         data={messages}
         renderItem={renderMessage}
         estimatedItemSize={100}
-        onEndReached={onLoadMore}
-        onEndReachedThreshold={0.5}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.2}
         ListFooterComponent={footerComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
         extraData={selectedMessagesStr}
-        initialScrollIndex={messages.length > 0 ? messages.length - 1 : undefined}
+        keyExtractor={(item) => item.id || `item-${item.timestamp}`}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        disableAutoLayout={true}
+        estimatedListSize={{ height: 500, width: 350 }}
+        drawDistance={200}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
       />
 
       <ConfirmDialog

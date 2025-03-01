@@ -63,7 +63,7 @@ const CodeBlock = ({ literal, language }: Props) => {
       {/* 语言标识和复制按钮 */}
       <TouchableOpacity 
         onPress={toggleCollapse}
-        activeOpacity={0.7}
+        activeOpacity={isDark ? 0.7 : 1}
         style={[
           styles.header,
           { backgroundColor: isDark ? '#2d333b' : '#f6f8fa' }
