@@ -1,12 +1,38 @@
-import { StyleSheet, TextStyle } from 'react-native';
+import { StyleSheet, TextStyle, Platform } from 'react-native';
 import { Colors } from './Colors';
 
-/**
- * 创建适用于亮色和深色模式的 Markdown 渲染样式配置
- * @param props 配置参数，包括颜色主题、字体等
- * @returns 返回 Markdown 样式对象
- */
-export const getMarkdownStyles = (props: {
+// 定义语法高亮颜色主题
+export const MarkdownCodeTheme = {
+  light: {
+    keyword: '#C678DD',    // 关键字 - 紫色
+    string: '#98C379',     // 字符串 - 绿色
+    comment: '#5C6370',    // 注释 - 灰色
+    number: '#D19A66',     // 数字 - 橙色
+    function: '#61AFEF',   // 函数 - 蓝色
+    property: '#E06C75',   // 属性 - 红色
+    tag: '#E06C75',        // HTML标签 - 红色
+    attribute: '#D19A66',  // HTML属性 - 橙色
+    variable: '#61AFEF',   // 变量 - 蓝色
+    operator: '#56B6C2',   // 操作符 - 青色
+    background: '#f6f8fa', // 代码块背景色
+  },
+  dark: {
+    keyword: '#CC99CD',    // 关键字 - 淡紫色
+    string: '#7EC699',     // 字符串 - 淡绿色
+    comment: '#767676',    // 注释 - 灰色
+    number: '#F08D49',     // 数字 - 橙色
+    function: '#6699CC',   // 函数 - 蓝色
+    property: '#F2777A',   // 属性 - 红色
+    tag: '#F2777A',        // HTML标签 - 红色
+    attribute: '#F08D49',  // HTML属性 - 橙色
+    variable: '#6699CC',   // 变量 - 蓝色
+    operator: '#CCCCCC',   // 操作符 - 白色
+    background: '#282c34', // 代码块背景色
+  }
+};
+
+// Markdown 样式配置参数接口
+interface MarkdownStyleOptions {
   colorScheme: 'light' | 'dark';
   textColor: string;
   tintColor: string;
@@ -15,7 +41,15 @@ export const getMarkdownStyles = (props: {
   tableHeaderBackgroundColor?: string;
   blockquoteBackgroundColor?: string;
   fontSizeMultiplier?: number;
-}) => {
+  fontFamily?: string;
+}
+
+/**
+ * 创建适用于亮色和深色模式的 Markdown 渲染样式配置
+ * @param options 配置参数，包括颜色主题、字体等
+ * @returns 返回 Markdown 样式对象
+ */
+export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
   const { 
     colorScheme, 
     textColor, 
@@ -25,37 +59,11 @@ export const getMarkdownStyles = (props: {
     tableHeaderBackgroundColor = colorScheme === 'dark' ? '#333333' : '#f5f5f5',
     blockquoteBackgroundColor = colorScheme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
     fontSizeMultiplier = 1,
-  } = props;
+    fontFamily = Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  } = options;
 
-  // 语法高亮配色方案
-  const syntaxColors = colorScheme === 'dark' 
-    ? {
-        // Dark 语法高亮
-        keyword: '#CC99CD',    // 关键字 - 淡紫色
-        string: '#7EC699',     // 字符串 - 淡绿色
-        comment: '#767676',    // 注释 - 灰色
-        number: '#F08D49',     // 数字 - 橙色
-        function: '#6699CC',   // 函数 - 蓝色
-        property: '#F2777A',   // 属性 - 红色
-        tag: '#F2777A',        // HTML标签 - 红色
-        attribute: '#F08D49',  // HTML属性 - 橙色
-        variable: '#6699CC',   // 变量 - 蓝色
-        operator: '#CCCCCC',   // 操作符 - 白色
-      }
-    : {
-        // Light 语法高亮
-        keyword: '#C678DD',    // 关键字 - 紫色
-        string: '#98C379',     // 字符串 - 绿色
-        comment: '#5C6370',    // 注释 - 灰色
-        number: '#D19A66',     // 数字 - 橙色
-        function: '#61AFEF',   // 函数 - 蓝色
-        property: '#E06C75',   // 属性 - 红色
-        tag: '#E06C75',        // HTML标签 - 红色
-        attribute: '#D19A66',  // HTML属性 - 橙色
-        variable: '#61AFEF',   // 变量 - 蓝色
-        operator: '#56B6C2',   // 操作符 - 青色
-      };
-
+  // 获取当前主题的代码颜色
+  const codeTheme = colorScheme === 'dark' ? MarkdownCodeTheme.dark : MarkdownCodeTheme.light;
   const baseFontSize = 15 * fontSizeMultiplier;
 
   return {
@@ -77,16 +85,17 @@ export const getMarkdownStyles = (props: {
     // 链接样式
     link: { 
       color: tintColor, 
-      textDecorationLine: 'underline' as TextStyle['textDecorationLine'] 
+      textDecorationLine: 'underline' as TextStyle['textDecorationLine']
     } as TextStyle,
     
     // 代码块样式
     code_block: { 
-      backgroundColor: codeBackgroundColor, 
+      backgroundColor: codeTheme.background, 
       padding: 12,
       borderRadius: 8,
       marginVertical: 10,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
+      fontSize: baseFontSize * 0.9,
     } as TextStyle,
     
     // 行内代码样式
@@ -95,17 +104,18 @@ export const getMarkdownStyles = (props: {
       paddingHorizontal: 5,
       paddingVertical: 2,
       borderRadius: 4,
-      fontFamily: 'monospace',
-      color: syntaxColors.function,
+      fontFamily: fontFamily,
+      color: codeTheme.function,
+      fontSize: baseFontSize * 0.9,
     } as TextStyle,
     
     // 代码围栏样式
     fence: { 
-      backgroundColor: codeBackgroundColor, 
+      backgroundColor: codeTheme.background, 
       padding: 12,
       borderRadius: 8,
       marginVertical: 10,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
     } as TextStyle,
     
     // 列表样式
@@ -225,28 +235,4 @@ export const getMarkdownStyles = (props: {
       textDecorationLine: 'line-through' as TextStyle['textDecorationLine']
     } as TextStyle,
   };
-};
-
-// 预定义的语法高亮样式
-export const syntaxHighlightStyles = {
-  light: {
-    keyword: '#C678DD',    // 关键字 - 紫色
-    string: '#98C379',     // 字符串 - 绿色
-    comment: '#5C6370',    // 注释 - 灰色
-    number: '#D19A66',     // 数字 - 橙色
-    function: '#61AFEF',   // 函数 - 蓝色
-    property: '#E06C75',   // 属性 - 红色
-    tag: '#E06C75',        // HTML标签 - 红色
-    attribute: '#D19A66',  // HTML属性 - 橙色
-  },
-  dark: {
-    keyword: '#CC99CD',    // 关键字 - 淡紫色
-    string: '#7EC699',     // 字符串 - 淡绿色
-    comment: '#767676',    // 注释 - 灰色
-    number: '#F08D49',     // 数字 - 橙色
-    function: '#6699CC',   // 函数 - 蓝色
-    property: '#F2777A',   // 属性 - 红色
-    tag: '#F2777A',        // HTML标签 - 红色
-    attribute: '#F08D49',  // HTML属性 - 橙色
-  },
 };

@@ -1,7 +1,6 @@
 import React from 'react';
-import { BaseToast, BaseToastProps, ErrorToast, ToastConfigParams } from 'react-native-toast-message';
+import { ToastConfigParams } from 'react-native-toast-message';
 import { View, Text } from 'react-native';
-import { useThemeColor } from '@/hooks/useThemeColor';
 
 export const toastConfig = {
   tomatoToast: (params: ToastConfigParams<any>) => (

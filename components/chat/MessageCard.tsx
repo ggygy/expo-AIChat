@@ -1,16 +1,18 @@
 import React, { FC, memo } from 'react';
-import { StyleSheet, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Message } from '@/constants/chat';
-import Markdown from 'react-native-markdown-display';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { showSuccess, showError } from '@/utils/toast';
 import { getMarkdownStyles } from '@/constants/MarkdownStyles';
+import MarkdownWithCodeHighlight from '../markdown/MarkdownWithCodeHighlight';
+import MessageActions from './MessageActions';
 import i18n from '@/i18n/i18n';
+
 
 interface MessageCardProps {
     message: Message;
@@ -34,6 +36,7 @@ const MessageCard: FC<MessageCardProps> = memo(({
     const textColor = useThemeColor({}, 'text');
     const tintColor = useThemeColor({}, 'tint');
     const isUser = message.role === 'user';
+    const isError = message.status === 'error';
 
     // 获取 Markdown 样式
     const markdownStyles = getMarkdownStyles({
@@ -43,7 +46,9 @@ const MessageCard: FC<MessageCardProps> = memo(({
         codeBackgroundColor: colors.markdownCode,
         tableBorderColor: colors.tableBorder,
         tableHeaderBackgroundColor: colors.tableHeaderBg,
-        blockquoteBackgroundColor: colors.blockquoteBg
+        blockquoteBackgroundColor: colors.blockquoteBg,
+        fontSizeMultiplier: 1,
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     });
 
     const renderContent = () => {
@@ -56,10 +61,11 @@ const MessageCard: FC<MessageCardProps> = memo(({
         
         // 助手消息根据contentType决定渲染方式
         if (message.contentType === 'markdown') {
+            // 使用我们新创建的包装组件
             return (
-                <Markdown style={markdownStyles as any}>
+                <MarkdownWithCodeHighlight style={markdownStyles}>
                     {message.content}
-                </Markdown>
+                </MarkdownWithCodeHighlight>
             );
         }
         
@@ -89,83 +95,75 @@ const MessageCard: FC<MessageCardProps> = memo(({
     };
 
     return (
-        <TouchableOpacity
-            style={[
-                styles.container,
-                isUser ? styles.userContainer : styles.botContainer,
-                showSelected && [styles.selectedContainer, { backgroundColor: colors.selectedBubbleBg }]
-            ]}
-            activeOpacity={0.8}
-            onLongPress={onLongPress}
-            onPress={onPress}
-            delayLongPress={500}
-        >
-            {!isUser && selectable && (
-                <View style={[styles.checkbox, styles.centerVertically]}>
-                    {showSelected ? (
-                        <FontAwesome name="check-circle" size={20} color={tintColor} />
-                    ) : (
-                        <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
-                    )}
-                </View>
-            )}
-
-            <View style={[
-                styles.bubble,
-                isUser ? [styles.userBubble, { backgroundColor: colors.userBubble, borderColor: colors.userBubbleBorder }]
-                    : [styles.botBubble, { backgroundColor: colors.botBubble, borderColor: colors.botBubbleBorder }],
-                { shadowColor: colors.bubbleShadowColor }
-            ]}>
-                <View style={styles.contentContainer}>
-                    {renderContent()}
-                    {renderStatusIndicator()}
-                    {message.status === 'error' && (
-                        <View style={styles.errorContainer}>
-                            <FontAwesome name="exclamation-circle" size={14} color={colors.error} style={styles.errorIcon} />
-                            <ThemedText style={[styles.errorText, { color: colors.error }]}>
-                                {message.error || i18n.t('chat.generateError')}
-                            </ThemedText>
-                        </View>
-                    )}
-                </View>
-                
-                {!isUser && (
-                    <View style={[styles.actionContainer, { borderTopColor: colors.divider }]}>
-                        <TouchableOpacity 
-                            style={[styles.actionButton, { backgroundColor: colors.actionButtonBg }]}
-                            onPress={handleCopyText}
-                        >
-                            <FontAwesome name="copy" size={16} color={colors.actionButtonText} />
-                            <ThemedText style={[styles.actionButtonText, { color: colors.actionButtonText }]}>
-                                {i18n.t('common.copy')}
-                            </ThemedText>
-                        </TouchableOpacity>
-                        
-                        {message.status === 'error' && onRetry && (
-                            <TouchableOpacity 
-                                style={[styles.actionButton, styles.retryButton, { backgroundColor: colors.actionButtonActiveBg }]}
-                                onPress={onRetry}
-                            >
-                                <FontAwesome name="refresh" size={16} color={colors.retryButton} />
-                                <ThemedText style={styles.actionButtonText}>
-                                    {i18n.t('common.retry')}
-                                </ThemedText>
-                            </TouchableOpacity>
+        <View style={styles.messageCardWrapper}>
+            <TouchableOpacity
+                style={[
+                    styles.container,
+                    isUser ? styles.userContainer : styles.botContainer,
+                    showSelected && [styles.selectedContainer, { backgroundColor: colors.selectedBubbleBg }]
+                ]}
+                activeOpacity={1}
+                onLongPress={onLongPress}
+                onPress={onPress}
+                delayLongPress={500}
+            >
+                {/* 选择框 */}
+                {!isUser && selectable && (
+                    <View style={[styles.checkbox, styles.centerVertically]}>
+                        {showSelected ? (
+                            <FontAwesome name="check-circle" size={20} color={tintColor} />
+                        ) : (
+                            <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
                         )}
                     </View>
                 )}
-            </View>
 
-            {isUser && selectable && (
-                <View style={[styles.checkbox, styles.centerVertically]}>
-                    {showSelected ? (
-                        <FontAwesome name="check-circle" size={20} color={tintColor} />
-                    ) : (
-                        <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
+                {/* 消息气泡 */}
+                <View style={[
+                    styles.bubble,
+                    isUser ? [styles.userBubble, { backgroundColor: colors.userBubble, borderColor: colors.userBubbleBorder }]
+                        : [styles.botBubble, { backgroundColor: colors.botBubble, borderColor: colors.botBubbleBorder }],
+                    { shadowColor: colors.bubbleShadowColor }
+                ]}>
+                    <View style={styles.contentContainer}>
+                        {renderContent()}
+                        {renderStatusIndicator()}
+                        {isError && (
+                            <View style={styles.errorContainer}>
+                                <FontAwesome name="exclamation-circle" size={14} color={colors.error} style={styles.errorIcon} />
+                                <ThemedText style={[styles.errorText, { color: colors.error }]}>
+                                    {message.error || i18n.t('chat.generateError')}
+                                </ThemedText>
+                            </View>
+                        )}
+                    </View>
+                    
+                    {/* 操作按钮组件 - 仅针对助手消息 */}
+                    {!isUser && (
+                        <MessageActions
+                            isError={isError}
+                            onRetry={onRetry}
+                            onCopy={handleCopyText}
+                            actionButtonColor={colors.actionButtonText}
+                            retryButtonColor={colors.retryButton} 
+                            dividerColor={colors.divider}
+                            showBottomRetryButton={isError && !!onRetry}
+                        />
                     )}
                 </View>
-            )}
-        </TouchableOpacity>
+
+                {/* 用户消息选择框 */}
+                {isUser && selectable && (
+                    <View style={[styles.checkbox, styles.centerVertically]}>
+                        {showSelected ? (
+                            <FontAwesome name="check-circle" size={20} color={tintColor} />
+                        ) : (
+                            <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
+                        )}
+                    </View>
+                )}
+            </TouchableOpacity>
+        </View>
     );
 }, (prevProps, nextProps) => {
     return (
@@ -179,6 +177,9 @@ const MessageCard: FC<MessageCardProps> = memo(({
 });
 
 const styles = StyleSheet.create({
+    messageCardWrapper: {
+        marginVertical: 4,
+    },
     container: {
         padding: 8,
         flexDirection: 'row',
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     botBubble: {
         borderBottomLeftRadius: 4,
         minWidth: '60%',
-        maxWidth: '85%',
+        maxWidth: '100%',
         flex: 1,
     },
     errorContainer: {
@@ -258,32 +259,6 @@ const styles = StyleSheet.create({
     contentContainer: {
         flex: 1,
         width: '100%',
-    },
-    actionContainer: {
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(0,0,0,0.1)',
-        paddingTop: 12,
-        marginTop: 12,
-    },
-    actionButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 8,
-        borderRadius: 8,
-        marginLeft: 12,
-        backgroundColor: 'rgba(0,0,0,0.03)',
-    },
-    retryButton: {
-        backgroundColor: 'rgba(0,0,0,0.05)',
-    },
-    actionButtonText: {
-        fontSize: 13,
-        marginLeft: 6,
-        fontWeight: '500',
     },
     statusIndicator: {
         marginTop: 8,

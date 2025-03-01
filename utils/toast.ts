@@ -11,10 +11,8 @@ export const showSuccess = (message: string, params?: Record<string, any>) => {
   
   Toast.show({
     type: 'success',
-    text1: i18n.t('common.success'),
-    text2: text,
+    text1: text,
     visibilityTime: 2000,
-    position: 'bottom'
   });
 };
 
@@ -28,10 +26,8 @@ export const showError = (message: string, params?: Record<string, any>) => {
   
   Toast.show({
     type: 'error',
-    text1: i18n.t('common.error'),
-    text2: text,
+    text1: text,
     visibilityTime: 3000,
-    position: 'bottom'
   });
 };
 
@@ -45,10 +41,8 @@ export const showInfo = (message: string, params?: Record<string, any>) => {
   
   Toast.show({
     type: 'info',
-    text1: i18n.t('common.info'),
-    text2: text,
+    text1: text,
     visibilityTime: 2000,
-    position: 'bottom'
   });
 };
 

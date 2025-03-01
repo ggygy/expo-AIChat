@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   footerContainer: {
     padding: 16,
     alignItems: 'center',
-    height: 72, // 固定高度，避免抖动
+    height: 72,
   },
   loadingFooter: {
     paddingVertical: 16,
