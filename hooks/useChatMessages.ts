@@ -202,6 +202,11 @@ export function useChatMessages(chatId: string, pageSize = 15) {
 
   // 更新消息列表 - 确保按时间戳正确排序
   const updateMessages = useCallback((newMessages: Message[]) => {
+    // 如果更新包含流式消息，设置滚动标志为 true
+    if (newMessages.some(msg => msg.status === 'streaming')) {
+      shouldScrollToBottom.current = true;
+    }
+    
     setMessages((prev: Message[]) => {
       const filtered = prev.filter(msg => 
         !newMessages.find(m => m.id === msg.id)
@@ -214,6 +219,7 @@ export function useChatMessages(chatId: string, pageSize = 15) {
   
   // 添加消息 - 添加新消息时应该滚动到底部
   const appendMessage = useCallback((message: Message) => {
+    // 设置滚动标志为 true，确保添加消息时会自动滚动到底部
     shouldScrollToBottom.current = true;
     setMessages((prev: Message[]) => {
       // 确保按时间戳排序
@@ -222,8 +228,13 @@ export function useChatMessages(chatId: string, pageSize = 15) {
     });
   }, []);
   
-  // 更新消息状态
+  // 更新消息状态，确保流式状态时设置滚动标志
   const updateMessageStatus = useCallback((messageId: string, status: MessageStatus, error?: string) => {
+    // 当状态为流式时，确保滚动到底部
+    if (status === 'streaming') {
+      shouldScrollToBottom.current = true;
+    }
+    
     setMessages((prev: Message[]) => prev.map(m => 
       m.id === messageId ? {
         ...m,

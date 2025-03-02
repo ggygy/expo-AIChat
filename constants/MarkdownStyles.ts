@@ -66,7 +66,7 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
   return {
     // 基础文本样式
     body: { 
-      color: textColor, 
+      color: textColor,
       fontSize: baseFontSize,
       lineHeight: baseFontSize * 1.5
     } as TextStyle,
@@ -80,8 +80,8 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
     } as TextStyle,
     
     // 链接样式
-    link: { 
-      color: tintColor, 
+    link: {
+      color: tintColor,
       textDecorationLine: 'underline' as TextStyle['textDecorationLine']
     } as TextStyle,
     

@@ -21,19 +21,63 @@ export function useAIChat(botId: string) {
   const getBotInfo = useBotStore(state => state.getBotInfo);
   const { providers } = useProviderStore();
   
+  // 使用ref来控制更新频率
+  const lastUpdateTimeRef = useRef<number>(0);
+  const pendingUpdateRef = useRef<{messages: Message[], callback: MessageUpdateCallback} | null>(null);
+  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   // 更新 isGenerating 状态时，同时更新 ref
   useEffect(() => {
     isGeneratingRef.current = isGenerating;
   }, [isGenerating]);
   
-  // 如果组件卸载，中止正在进行的请求
+  // 清理函数
   useEffect(() => {
     return () => {
       if (abortController) {
         abortController.abort();
       }
+      
+      // 清理任何剩余的定时器
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
     };
   }, [abortController]);
+
+  // 使用节流方式更新UI，确保UI保持响应
+  const scheduleUiUpdate = useCallback((messages: Message[], callback: MessageUpdateCallback) => {
+    const now = Date.now();
+    // 存储最新的消息
+    pendingUpdateRef.current = { messages, callback };
+    
+    // 如果没有定时器在运行，则创建一个
+    if (!updateIntervalRef.current) {
+      updateIntervalRef.current = setInterval(() => {
+        // 如果有待更新的消息，则执行更新
+        if (pendingUpdateRef.current) {
+          const { messages, callback } = pendingUpdateRef.current;
+          callback(messages);
+          lastUpdateTimeRef.current = Date.now();
+          pendingUpdateRef.current = null;
+        } else {
+          // 如果没有待更新的消息，清除定时器
+          if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+            updateIntervalRef.current = null;
+          }
+        }
+      }, 50); // 每50毫秒检查一次是否有更新，这个值可以根据需要调整
+    }
+    
+    // 如果距离上次更新时间超过100ms，立即执行一次更新
+    if (now - lastUpdateTimeRef.current > 100) {
+      callback(messages);
+      lastUpdateTimeRef.current = now;
+      pendingUpdateRef.current = null;
+    }
+  }, []);
 
   const sendMessage = useCallback(
     async (userMessage: Message, onUpdate: MessageUpdateCallback) => {
@@ -168,10 +212,36 @@ export function useAIChat(botId: string) {
           let totalTokens = 0;
           let promptTokens = 0;
           let completionTokens = 0;
+          
+          // 数据库更新的计时器
+          let dbUpdateTimeout: NodeJS.Timeout | null = null;
+          
+          // 创建一个函数来处理数据库更新，避免频繁IO操作
+          const scheduleDbUpdate = (content: string, thinkingContent: string, status: MessageStatus, tokenInfo?: any) => {
+            if (dbUpdateTimeout) {
+              clearTimeout(dbUpdateTimeout);
+            }
+            
+            dbUpdateTimeout = setTimeout(() => {
+              messageDb.updateMessageWithThinking(
+                assistantMessage.id, 
+                content,
+                thinkingContent,
+                status, 
+                'markdown',
+                tokenInfo
+              ).catch(error => {
+                console.error('保存内容到数据库失败:', error);
+              });
+              dbUpdateTimeout = null;
+            }, 200); // 延迟200ms，减少数据库写入频率
+          };
+          
           const stream = await modelProvider.stream(langchainMessages);
           
           try {
             for await (const chunk of stream) {
+              // 检查是否已中止生成
               if (!isGeneratingRef.current) {
                 console.log('流式生成被中止');
                 break;
@@ -214,42 +284,34 @@ export function useAIChat(botId: string) {
                   } : undefined
                 };
                 
-                // 使用微任务来立即更新UI，而不是等待IO操作完成
-                Promise.resolve().then(() => {
-                  // 立即更新UI
-                  onUpdate([userMsg, updatedAssistantMessage]);
-                });
+                // 使用节流更新UI，确保不会阻塞
+                scheduleUiUpdate([userMsg, updatedAssistantMessage], onUpdate);
                 
-                // 定期保存内容到数据库 - 不阻塞UI更新
-                const contentChanged = content.length - lastSaveLength > 50;
-                const thinkingChanged = thinkingContent.length - lastThinkingLength > 50;
+                // 定期保存内容到数据库
+                const contentChanged = content.length - lastSaveLength > 100;
+                const thinkingChanged = thinkingContent.length - lastThinkingLength > 100;
                 
                 if (contentChanged || thinkingChanged) {
                   // 记录当前长度，避免重复保存相同内容
                   lastSaveLength = content.length;
                   lastThinkingLength = thinkingContent.length;
                   
-                  // 使用不带await的Promise来异步保存
+                  // 使用定时器延迟数据库更新，避免频繁IO
                   const tokenInfo = totalTokens > 0 ? {
                     total_tokens: totalTokens,
                     prompt_tokens: promptTokens,
                     completion_tokens: completionTokens
                   } : undefined;
                   
-                  // 更新数据库中的消息，包括思考内容
-                  messageDb.updateMessageWithThinking(
-                    assistantMessage.id, 
-                    content,
-                    thinkingContent,
-                    'streaming', 
-                    'markdown',
-                    tokenInfo
-                  ).then(() => {
-                    console.log(`异步保存中间内容成功: 内容长度=${content.length}字符, 思考长度=${thinkingContent.length}字符, tokens=${totalTokens}`);
-                  }).catch(error => {
-                    console.error('保存中间内容失败:', error);
-                  });
+                  // 计划数据库更新，不阻塞UI
+                  scheduleDbUpdate(content, thinkingContent, 'streaming', tokenInfo);
                 }
+              }
+              
+              // 添加一个延时，让UI线程有机会执行其他操作
+              // 这样可以确保按钮点击等交互能够被处理
+              if (content.length % 20 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
               }
             }
           } catch (error) {
@@ -257,6 +319,12 @@ export function useAIChat(botId: string) {
             if (isGeneratingRef.current) { // 只有在未主动中止时才视为错误
               throw error;
             }
+          }
+
+          // 取消任何待处理的数据库更新
+          if (dbUpdateTimeout) {
+            clearTimeout(dbUpdateTimeout);
+            dbUpdateTimeout = null;
           }
 
           // 构建token使用信息对象
@@ -294,6 +362,12 @@ export function useAIChat(botId: string) {
           
           // 最后一次更新 UI
           onUpdate([userMessage, finalAssistantMessage]);
+          
+          // 清理任何剩余的定时器
+          if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+            updateIntervalRef.current = null;
+          }
         } else {
           // 非流式输出
           const response = await modelProvider.chat(langchainMessages);
@@ -351,9 +425,15 @@ export function useAIChat(botId: string) {
         setIsGenerating(false);
         isGeneratingRef.current = false;
         setAbortController(null);
+        
+        // 清理定时器
+        if (updateIntervalRef.current) {
+          clearInterval(updateIntervalRef.current);
+          updateIntervalRef.current = null;
+        }
       }
     },
-    [botId, providers, getBotInfo]
+    [botId, providers, getBotInfo, scheduleUiUpdate]
   );
 
   // 封装设置生成状态的函数，同时更新ref

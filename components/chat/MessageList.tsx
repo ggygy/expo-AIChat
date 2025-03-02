@@ -66,7 +66,8 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     handleScrollEndDrag,
     handleMomentumScrollEnd,
     handleBeforeLoadMore,
-    viewabilityConfig
+    viewabilityConfig,
+    getFlashListProps
   } = useMessageScroll(messages, listRef, shouldScrollToBottom, setShouldScrollToBottom);
   
   // 暴露滚动方法给父组件
@@ -202,13 +203,45 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     }
   }, [messages, isScrolling, streamingMessageIdRef.current]);
   
+  // 追踪流式消息内容
+  const lastContentLengthRef = useRef<Record<string, number>>({});
+  
+  // 跟踪流式消息状态变化
+  useEffect(() => {
+    // 检测是否有流式消息更新
+    const streamingMessage = messages.find(m => m.status === 'streaming');
+    if (streamingMessage) {
+      const msgId = streamingMessage.id;
+      const contentLength = streamingMessage.content.length;
+      
+      // 如果内容长度大幅增加，需要滚动到底部
+      if (!lastContentLengthRef.current[msgId] || 
+          contentLength - (lastContentLengthRef.current[msgId] || 0) > 30) {
+        
+        // 更新记录的内容长度
+        lastContentLengthRef.current[msgId] = contentLength;
+        
+        // 如果应该滚动到底部且不是用户手动滚动中
+        if (shouldScrollToBottom?.current && !isScrolling) {
+          // 使用requestAnimationFrame确保在下一帧绘制前滚动
+          requestAnimationFrame(() => {
+            scrollToEnd(true);
+          });
+        }
+      }
+    }
+  }, [messages, scrollToEnd, isScrolling, shouldScrollToBottom]);
+  
+  // 获取FlashList特定配置
+  const flashListProps = getFlashListProps();
+  
   return (
     <View style={styles.container}>
       <FlashList
         ref={listRef}
         data={messages}
         renderItem={renderMessage}
-        estimatedItemSize={100}
+        estimatedItemSize={flashListProps.estimatedItemSize}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.2}
         showsVerticalScrollIndicator={false}
@@ -221,11 +254,14 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         onMomentumScrollEnd={handleMomentumScrollEnd}
         onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        disableAutoLayout={true}
-        estimatedListSize={{ height: 500, width: 350 }}
-        drawDistance={200}
+        disableAutoLayout={flashListProps.disableAutoLayout}
+        drawDistance={flashListProps.drawDistance}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10
+        }}
       />
       
       {/* 加载指示器和停止生成按钮作为独立组件 */}
@@ -269,7 +305,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingVertical: 16,
-    paddingBottom: 70,
   },
   // 浮动在底部的加载指示器和停止按钮容器
   floatingFooterContainer: {
@@ -285,14 +320,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   stopButton: {
-    padding: 2,
+    padding: 6,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
     zIndex: 20,
   },
   selectionToolbar: {

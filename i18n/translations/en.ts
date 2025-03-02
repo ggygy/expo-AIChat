@@ -54,6 +54,8 @@ export const en = {
     selectedCount: "messages selected",
     generateError: "Error generating response, please retry",
     errorResponse: "Sorry, an error occurred while generating a response.",
+    thinking: 'Thinking Process',
+    answer: 'Answer',
   },
   config: {
     title: 'Provider Configuration',
