@@ -187,9 +187,8 @@ export default function ChatScreen() {
         isSelectMode,
         selectedMessages,
         showDeleteDialog,
-        setIsSelectMode,
-        setSelectedMessages,
-        // 添加新的props
+        setIsSelectMode: (value: boolean) => setIsSelectMode(value), // 确保正确的类型
+        setSelectedMessages: (value: Set<string>) => setSelectedMessages(value), // 确保正确的类型
         shouldScrollToBottom,
         setShouldScrollToBottom
     }), [

@@ -78,6 +78,7 @@ export const Colors = {
     chat: {
       userBubble: '#dcf8c6',
       botBubble: '#fff',
+      thinkingBg: '#f5f5f5',
       userBubbleBorder: '#c7e6b8',
       botBubbleBorder: '#e0e0e0',
       timestamp: '#999999',
@@ -95,6 +96,9 @@ export const Colors = {
       actionButtonText: '#333333',
       selectedBubbleBg: 'rgba(33, 150, 243, 0.05)',
       bubbleShadowColor: 'rgba(0,0,0,0.08)',
+      thinkingBubble: '#f5f5f5',
+      thinkingBubbleBorder: '#e0e0e0',
+      thinkingText: '#666666',
     },
   },
   dark: {
@@ -168,6 +172,7 @@ export const Colors = {
     chat: {
       userBubble: '#205c3b',
       botBubble: '#1e1e1e',
+      thinkingBg: '#2a2a2a',
       userBubbleBorder: '#2d7a4f',
       botBubbleBorder: '#333333',
       timestamp: '#888888',
@@ -186,6 +191,9 @@ export const Colors = {
       actionButtonText: '#e0e0e0',
       selectedBubbleBg: 'rgba(66, 165, 245, 0.1)',
       bubbleShadowColor: 'rgba(0,0,0,0.2)',
+      thinkingBubble: '#2a2a2a',
+      thinkingBubbleBorder: '#3a3a3a',
+      thinkingText: '#a0a0a0',
     },
   },
 } as const;

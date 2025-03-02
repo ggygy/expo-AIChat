@@ -18,8 +18,6 @@ interface Props {
 }
 
 const CodeBlock = ({ literal, language }: Props) => {
-  // console.log('CodeBlock', literal, language);
-  
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const colorScheme = useColorScheme();

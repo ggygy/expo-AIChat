@@ -1,25 +1,33 @@
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { BaseProvider, ModelConfig } from "./BaseProvider";
+import { BaseMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
-import { SystemMessage } from '@langchain/core/messages';
-import { langchainFetchOptions } from "@/utils/langchainFetchAdapter";
+import { BaseProvider, ModelConfig } from './BaseProvider';
+import { IterableReadableStream } from '@langchain/core/dist/utils/stream';
+import { langchainFetchOptions } from '@/utils/langchainFetchAdapter';
 import { ModelInfo } from "@/constants/ModelProviders";
 
 export class OpenAIProvider extends BaseProvider {
   initialize(config: ModelConfig): void {
-    this.model = new ChatOpenAI({
-      temperature: config.temperature,
-      maxTokens: config.maxTokens,
+    // 保存maxTokens
+    this.maxTokens = config.maxTokens;
+    
+    const modelOptions: any = {
       modelName: config.modelName,
-      topP: config.topP,
-      streaming: config.streamOutput,
-      apiKey: config.apiKey,
+      openAIApiKey: config.apiKey,
+      temperature: config.temperature ?? 0.7,
+      topP: config.topP ?? 1,
       configuration: {
         ...langchainFetchOptions,
-        baseURL: config.baseUrl
+        baseURL: config.baseUrl || 'https://api.openai.com/v1'
       }
-    });
+    };
+    
+    if (config.maxTokens !== undefined) {
+      modelOptions.maxTokens = config.maxTokens;
+    }
 
+    this.model = new ChatOpenAI(modelOptions);
+
+    // 如果有系统提示，创建系统消息
     if (config.systemPrompt) {
       this.systemMessage = new SystemMessage({ content: config.systemPrompt });
     }

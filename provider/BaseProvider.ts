@@ -33,6 +33,7 @@ export interface IModelProvider {
 export abstract class BaseProvider implements IModelProvider {
   protected model!: BaseChatModel;
   protected systemMessage?: SystemMessage;
+  protected maxTokens?: number; // 添加maxTokens属性
 
   abstract initialize(config: ModelConfig): void;
 
@@ -47,7 +48,7 @@ export abstract class BaseProvider implements IModelProvider {
   async stream(messages: BaseMessage[]): Promise<IterableReadableStream<any>> {
     const messageList = this.systemMessage 
       ? [this.systemMessage, ...messages]
-      : messages;
+      : messages; 
     return this.model.stream(messageList);
   }
 

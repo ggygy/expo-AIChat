@@ -1,8 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import i18n from '@/i18n/i18n';
 import { showSuccess, showError } from '@/utils/toast'; // 导入 Toast 辅助函数
+import { Message } from '@/constants/chat';
 
-export function useChatSelection(onDeleteMessages: (messageIds: string[]) => Promise<boolean>) {
+type DeleteMessagesFunction = (messageIds: string[]) => Promise<boolean>;
+
+export function useChatSelection(onDeleteMessages: DeleteMessagesFunction) {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -15,19 +18,19 @@ export function useChatSelection(onDeleteMessages: (messageIds: string[]) => Pro
   }, []);
 
   // 处理长按消息，进入选择模式
-  const handleLongPress = useCallback((messageId: string) => {
+  const handleLongPress = useCallback((message: Message) => {
     setIsSelectMode(true);
-    setSelectedMessages(new Set([messageId]));
+    setSelectedMessages(new Set([message.id]));
   }, []);
 
   // 处理单击消息，选择或取消选择
-  const handleSelect = useCallback((messageId: string) => {
+  const handleSelect = useCallback((message: Message) => {
     setSelectedMessages(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(messageId)) {
-        newSet.delete(messageId);
+      if (newSet.has(message.id)) {
+        newSet.delete(message.id);
       } else {
-        newSet.add(messageId);
+        newSet.add(message.id);
       }
       return newSet;
     });

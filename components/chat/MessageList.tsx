@@ -135,17 +135,34 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     [selectedMessages, isSelectMode]
   );
   
-  // 渲染单个消息项
-  const renderMessage = useCallback(({ item }: { item: Message }) => (
-    <MessageCard
-      message={item}
-      onRetry={item.status === 'error' ? () => onRetry?.(item.id) : undefined}
-      onLongPress={() => handleLongPress(item)}
-      onPress={() => isSelectMode && handleSelect(item)}
-      isSelected={selectedMessages.has(item.id)}
-      selectable={isSelectMode}
-    />
-  ), [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode]);
+  // 追踪最后一个流式消息的ID，用于识别需要优先更新的消息
+  const streamingMessageIdRef = useRef<string | null>(null);
+  
+  // 检测是否有正在流式传输的消息
+  useEffect(() => {
+    // 找到流式状态的消息
+    const streamingMessage = messages.find(m => m.status === 'streaming');
+    streamingMessageIdRef.current = streamingMessage?.id || null;
+  }, [messages]);
+  
+  // 修改渲染函数来优化流式消息的渲染
+  const renderMessage = useCallback(({ item }: { item: Message }) => {
+    // 确定是否是流式消息
+    const isStreamingMessage = item.id === streamingMessageIdRef.current;
+    
+    return (
+      <MessageCard
+        message={item}
+        onRetry={item.status === 'error' ? () => onRetry?.(item.id) : undefined}
+        onLongPress={() => handleLongPress(item)}
+        onPress={() => isSelectMode && handleSelect(item)}
+        isSelected={selectedMessages.has(item.id)}
+        selectable={isSelectMode}
+        // 添加一个key来标记流式消息，强制实时更新
+        key={isStreamingMessage ? `${item.id}-${Date.now()}` : item.id}
+      />
+    );
+  }, [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode, streamingMessageIdRef.current]);
   
   // 列表底部加载指示器已从FlashList中移除，将在外部独立渲染
   
@@ -176,6 +193,14 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       return () => clearTimeout(timer);
     }
   }, []); // 空依赖数组确保只在挂载时执行一次
+  
+  // 确保顺畅滚动，特别是对流式消息
+  useEffect(() => {
+    // 如果存在流式消息则自动滚动到底部
+    if (streamingMessageIdRef.current && !isScrolling) {
+      scrollToEnd(false);
+    }
+  }, [messages, isScrolling, streamingMessageIdRef.current]);
   
   return (
     <View style={styles.container}>

@@ -1,5 +1,5 @@
-import React, { FC, memo } from 'react';
-import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
+import React, { FC, memo, useState, useCallback } from 'react';
+import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Platform, Pressable } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -37,6 +37,18 @@ const MessageCard: FC<MessageCardProps> = memo(({
     const tintColor = useThemeColor({}, 'tint');
     const isUser = message.role === 'user';
     const isError = message.status === 'error';
+    const hasThinking = !!message.thinkingContent;
+    
+    // 使用状态跟踪思考内容是否展开
+    const [isThinkingExpanded, setIsThinkingExpanded] = useState(
+      message.isThinkingExpanded !== undefined ? message.isThinkingExpanded : true
+    );
+    
+    // 处理思考内容展开/折叠
+    const toggleThinking = useCallback((e: any) => {
+      e.stopPropagation();
+      setIsThinkingExpanded(prev => !prev);
+    }, []);
 
     // 获取 Markdown 样式
     const markdownStyles = getMarkdownStyles({
@@ -50,33 +62,86 @@ const MessageCard: FC<MessageCardProps> = memo(({
         fontSizeMultiplier: 1,
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     });
+    
+    // 思考内容的专用样式
+    const thinkingMarkdownStyles = {
+      ...markdownStyles,
+      body: {
+        ...markdownStyles.body,
+        color: colors.thinkingText || '#666',
+        paddingHorizontal: 5,
+      }
+    };
 
     const renderContent = () => {
-        if (!message.content) return null;
+        if (!message.content && !message.thinkingContent) return null;
         
         // 用户消息总是使用普通文本
         if (isUser) {
             return <ThemedText style={styles.messageText}>{message.content}</ThemedText>;
         }
         
-        // 助手消息根据contentType决定渲染方式
-        if (message.contentType === 'markdown') {
-            console.log('MarkdownWithCodeHighlight', message.content);
+        return (
+          <View style={styles.contentContainer}>
+            {/* 思考内容（如果存在） */}
+            {message.thinkingContent && (
+              <View style={styles.thinkingSection}>
+                {/* 思考标题和折叠按钮 */}
+                <Pressable 
+                  style={styles.thinkingHeader} 
+                  onPress={toggleThinking}
+                  android_ripple={{color: 'rgba(0,0,0,0.1)'}}
+                >
+                  <ThemedText style={styles.thinkingLabel}>
+                    {i18n.t('chat.thinking')}
+                  </ThemedText>
+                  <FontAwesome 
+                    name={isThinkingExpanded ? 'chevron-up' : 'chevron-down'} 
+                    size={14} 
+                    color={colors.thinkingText || '#666'} 
+                  />
+                </Pressable>
+                
+                {/* 可折叠的思考内容 */}
+                {isThinkingExpanded && (
+                  <View style={[styles.thinkingContent, {backgroundColor: colors.thinkingBg}]}>
+                    <MarkdownWithCodeHighlight style={thinkingMarkdownStyles}>
+                      {message.thinkingContent}
+                    </MarkdownWithCodeHighlight>
+                  </View>
+                )}
+              </View>
+            )}
             
-            return (
-                <MarkdownWithCodeHighlight style={markdownStyles}>
+            {/* 正常回答内容的分隔线 */}
+            {message.content && message.thinkingContent && isThinkingExpanded && (
+              <View style={styles.contentDivider} />
+            )}
+            
+            {/* 正常回答内容 */}
+            {message.content && (
+              <View style={styles.normalContent}>
+                {message.contentType === 'markdown' ? (
+                  <MarkdownWithCodeHighlight style={markdownStyles}>
                     {message.content}
-                </MarkdownWithCodeHighlight>
-            );
-        }
-        
-        // 默认使用普通文本
-        return <ThemedText style={styles.messageText}>{message.content}</ThemedText>;
+                  </MarkdownWithCodeHighlight>
+                ) : (
+                  <ThemedText style={styles.messageText}>{message.content}</ThemedText>
+                )}
+              </View>
+            )}
+          </View>
+        );
     };
 
     const handleCopyText = async () => {
         try {
-            await Clipboard.setStringAsync(message.content);
+            // 如果有思考内容，复制两部分内容
+            const textToCopy = message.thinkingContent 
+              ? `${i18n.t('chat.thinking')}:\n${message.thinkingContent}\n\n${i18n.t('chat.answer')}:\n${message.content}`
+              : message.content;
+              
+            await Clipboard.setStringAsync(textToCopy);
             showSuccess('common.copySuccess');
         } catch (error) {
             console.error('复制失败:', error);
@@ -123,7 +188,11 @@ const MessageCard: FC<MessageCardProps> = memo(({
                 <View style={[
                     styles.bubble,
                     isUser ? [styles.userBubble, { backgroundColor: colors.userBubble, borderColor: colors.userBubbleBorder }]
-                        : [styles.botBubble, { backgroundColor: colors.botBubble, borderColor: colors.botBubbleBorder }],
+                        : [styles.botBubble, 
+                           { 
+                             backgroundColor: colors.botBubble, 
+                             borderColor: colors.botBubbleBorder 
+                           }],
                     { shadowColor: colors.bubbleShadowColor }
                 ]}>
                     <View style={styles.contentContainer}>
@@ -139,7 +208,7 @@ const MessageCard: FC<MessageCardProps> = memo(({
                         )}
                     </View>
                     
-                    {/* 操作按钮组件 - 仅针对助手消息 */}
+                    {/* 操作按钮组件 - 仅针对助手非思考消息 */}
                     {!isUser && (
                         <MessageActions
                             isError={isError}
@@ -173,7 +242,10 @@ const MessageCard: FC<MessageCardProps> = memo(({
         prevProps.selectable === nextProps.selectable &&
         prevProps.message.status === nextProps.message.status &&
         prevProps.message.content === nextProps.message.content &&
-        prevProps.message.contentType === nextProps.message.contentType
+        prevProps.message.thinkingContent === nextProps.message.thinkingContent &&
+        prevProps.message.isThinkingExpanded === nextProps.message.isThinkingExpanded &&
+        prevProps.message.contentType === nextProps.message.contentType &&
+        prevProps.message.messageType === nextProps.message.messageType
     );
 });
 
@@ -264,6 +336,38 @@ const styles = StyleSheet.create({
     statusIndicator: {
         marginTop: 8,
         alignSelf: 'flex-start',
+    },
+    thinkingContainer: {
+        backgroundColor: 'rgba(0, 0, 0, 0.03)',
+        borderRadius: 8,
+        padding: 10,
+        marginVertical: 4,
+    },
+    thinkingLabel: {
+        fontWeight: 'bold',
+        marginBottom: 6,
+        fontSize: 14,
+        color: '#666',
+    },
+    thinkingSection: {
+        marginBottom: 8,
+    },
+    thinkingHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    thinkingContent: {
+        marginTop: 4,
+    },
+    contentDivider: {
+        height: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        marginVertical: 8,
+    },
+    normalContent: {
+        marginTop: 8,
     },
 });
 

@@ -74,13 +74,14 @@ export function useChatMessages(chatId: string, pageSize = 15) {
         setHasMore(false);
       }
       
-      // 确保消息按时间顺序排列
+      // 确保消息按时间顺序排列 - 明确使用时间戳进行排序
       const validatedMessages = newMessages
         .map(msg => ({
           ...msg,
-          role: msg.role as 'user' | 'assistant' | 'system'
+          role: msg.role as 'user' | 'assistant' | 'system',
+          timestamp: msg.timestamp || Date.now() // 确保有时间戳
         }))
-        .sort((a, b) => a.timestamp - b.timestamp);
+        .sort((a, b) => a.timestamp - b.timestamp); // 明确按时间戳升序排序
       
       if (pageNum === 0) {
         console.log('设置初始消息，总数:', validatedMessages.length);
@@ -95,8 +96,10 @@ export function useChatMessages(chatId: string, pageSize = 15) {
           const existingIds = new Set(prev.map(m => m.id));
           const uniqueMessages = validatedMessages.filter(m => !existingIds.has(m.id));
           
-          // 如果是加载更早的消息，则添加到前面
-          const newMessages = [...uniqueMessages, ...prev];
+          // 如果是加载更早的消息，则添加到前面，并确保整体排序正确
+          const newMessages = [...uniqueMessages, ...prev]
+            .sort((a, b) => a.timestamp - b.timestamp); // 确保整体排序正确
+            
           messagesLengthRef.current = newMessages.length;
           
           // 加载更多消息时不应该自动滚动到底部
@@ -197,25 +200,31 @@ export function useChatMessages(chatId: string, pageSize = 15) {
     }, [loadMessages, messages.length])
   );
 
-  // 更新消息列表
+  // 更新消息列表 - 确保按时间戳正确排序
   const updateMessages = useCallback((newMessages: Message[]) => {
-    setMessages(prev => {
+    setMessages((prev: Message[]) => {
       const filtered = prev.filter(msg => 
         !newMessages.find(m => m.id === msg.id)
       );
-      return [...filtered, ...newMessages];
+      // 合并并按时间戳排序
+      return [...filtered, ...newMessages]
+        .sort((a, b) => a.timestamp - b.timestamp);
     });
   }, []);
   
   // 添加消息 - 添加新消息时应该滚动到底部
   const appendMessage = useCallback((message: Message) => {
     shouldScrollToBottom.current = true;
-    setMessages(prev => [...prev, message]);
+    setMessages((prev: Message[]) => {
+      // 确保按时间戳排序
+      return [...prev, message]
+        .sort((a, b) => a.timestamp - b.timestamp);
+    });
   }, []);
   
   // 更新消息状态
   const updateMessageStatus = useCallback((messageId: string, status: MessageStatus, error?: string) => {
-    setMessages(prev => prev.map(m => 
+    setMessages((prev: Message[]) => prev.map(m => 
       m.id === messageId ? {
         ...m,
         status: status as MessageStatus,

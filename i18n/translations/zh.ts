@@ -54,6 +54,8 @@ export const zh = {
     selectedCount: "条消息已选择",
     generateError: '生成回复时出错，请重试',
     errorResponse: '很抱歉，生成回复时出现了错误。',
+    thinking: '思考过程',
+    answer: '回答',
   },
   config: {
     title: '服务商配置',
