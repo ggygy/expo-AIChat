@@ -104,25 +104,29 @@ export const getMarkdownStyles = (options: MarkdownStyleOptions) => {
       color: textColor, 
       fontSize: baseFontSize * 1.6, 
       fontWeight: 'bold', 
-      marginVertical: 12 
+      marginVertical: 12,
+      lineHeight: baseFontSize * 1.8
     } as TextStyle,
     heading2: { 
       color: textColor, 
       fontSize: baseFontSize * 1.5, 
       fontWeight: 'bold', 
-      marginVertical: 10 
+      marginVertical: 10,
+      lineHeight: baseFontSize * 1.7
     } as TextStyle,
     heading3: { 
       color: textColor, 
       fontSize: baseFontSize * 1.4, 
       fontWeight: 'bold', 
-      marginVertical: 8 
+      marginVertical: 8,
+      lineHeight: baseFontSize * 1.6
     } as TextStyle,
     heading4: { 
       color: textColor, 
       fontSize: baseFontSize * 1.3, 
       fontWeight: 'bold', 
-      marginVertical: 6 
+      marginVertical: 6,
+      lineHeight: baseFontSize * 1.5
     } as TextStyle,
     heading5: { 
       color: textColor, 

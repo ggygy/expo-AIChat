@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Message } from '@/constants/chat';
 import MessageCard from './MessageCard';
@@ -147,28 +147,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     />
   ), [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode]);
   
-  // 列表底部加载指示器
-  const footerComponent = useMemo(() => {
-    if (!isLoading && !isGenerating) return null;
-    
-    return (
-      <View style={styles.footerContainer}>
-        {isLoading && (
-          <View style={styles.loadingFooter}>
-            <ActivityIndicator />
-          </View>
-        )}
-        {isGenerating && (
-          <TouchableOpacity 
-            style={styles.stopButton}
-            onPress={onStopGeneration}
-          >
-            <FontAwesome name="stop-circle" size={24} color={iconColor} />
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }, [isLoading, isGenerating, onStopGeneration, iconColor]);
+  // 列表底部加载指示器已从FlashList中移除，将在外部独立渲染
   
   // 处理加载更多消息 - 结合滚动优化
   const handleLoadMore = useCallback(() => {
@@ -177,6 +156,15 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       onLoadMore?.();
     }
   }, [onLoadMore, isLoading, isScrolling, handleBeforeLoadMore]);
+  
+  // 停止生成的处理函数
+  const handleStopGeneration = useCallback((e: any) => {
+    // 阻止事件冒泡
+    e.stopPropagation?.();
+    if (typeof onStopGeneration === 'function') {
+      onStopGeneration();
+    }
+  }, [onStopGeneration]);
   
   // 添加初始加载后的效果来滚动到底部
   useEffect(() => {
@@ -198,7 +186,6 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         estimatedItemSize={100}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.2}
-        ListFooterComponent={footerComponent}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
         extraData={selectedMessagesStr}
@@ -215,6 +202,26 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       />
+      
+      {/* 加载指示器和停止生成按钮作为独立组件 */}
+      {(isLoading || isGenerating) && (
+        <View style={styles.floatingFooterContainer}>
+          {isLoading && (
+            <View style={styles.loadingFooter}>
+              <ActivityIndicator />
+            </View>
+          )}
+          {isGenerating && (
+            <Pressable 
+              style={styles.stopButton}
+              onPress={handleStopGeneration}
+              hitSlop={20}
+            >
+              <FontAwesome name="stop-circle" size={24} color={iconColor} />
+            </Pressable>
+          )}
+        </View>
+      )}
 
       <ConfirmDialog
         visible={showDeleteDialog}
@@ -237,18 +244,31 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingVertical: 16,
+    paddingBottom: 70,
   },
-  footerContainer: {
-    padding: 16,
+  // 浮动在底部的加载指示器和停止按钮容器
+  floatingFooterContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    height: 72,
+    zIndex: 10,
+    pointerEvents: 'box-none',
   },
   loadingFooter: {
     paddingVertical: 16,
   },
   stopButton: {
-    padding: 8,
-    borderRadius: 20,
+    padding: 2,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    zIndex: 20,
   },
   selectionToolbar: {
     flexDirection: 'row',

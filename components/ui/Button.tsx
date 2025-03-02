@@ -227,6 +227,7 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 21,
   },
   // 尺寸样式
   small: {

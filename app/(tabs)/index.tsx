@@ -13,6 +13,8 @@ import { type ModelProviderId } from '@/constants/ModelProviders';
 import Toast from 'react-native-toast-message';
 import BotCard from '@/components/bot/BotCard';
 import { useLanguageStore } from '@/store/useLanguageStore';
+import { messageDb } from '@/database';
+import { showError, showSuccess } from '@/utils/toast';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -39,13 +41,16 @@ export default function HomeScreen() {
     setDeleteDialogVisible(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedBotId) {
-      deleteBot(selectedBotId);
-      Toast.show({
-        type: 'success',
-        text1: i18n.t('bot.deleteSuccess'),
-      });
+      try {
+        await messageDb.deleteMessages(selectedBotId);
+        deleteBot(selectedBotId);
+        showSuccess('bot.deleteSuccess');
+      } catch (error) {
+        console.error('删除机器人及聊天记录失败:', error);
+        showError('bot.deleteFailed');
+      }
     }
     setDeleteDialogVisible(false);
     setSelectedBotId(null);

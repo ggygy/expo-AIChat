@@ -8,7 +8,7 @@ import { AppState, AppStateStatus } from 'react-native';
 // 定义消息状态的类型，确保与 Message 接口兼容
 type MessageStatus = 'sending' | 'streaming' | 'sent' | 'error';
 
-export function useChatMessages(chatId: string, pageSize = 15) {  // 将默认每页加载数调整为15条
+export function useChatMessages(chatId: string, pageSize = 15) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -305,7 +305,7 @@ export function useChatMessages(chatId: string, pageSize = 15) {  // 将默认�
     messagesLengthRef,
     debugMessages,
     manualRefresh,
-    forceLoadMessages, // 导出新方法
+    forceLoadMessages,
     shouldScrollToBottom,
     setShouldScrollToBottom
   };

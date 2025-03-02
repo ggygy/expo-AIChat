@@ -132,10 +132,22 @@ export function useChatActions(
     }
   }, [messages, sendMessage, setMessages]);
 
-  // 停止生成
+  // 停止生成 - 改进生成状态控制
   const handleStopGeneration = useCallback(() => {
+    console.log('停止生成请求');
     setIsGenerating(false);
-  }, [setIsGenerating]);
+    // 查找当前正在生成的消息并将其状态更新为已发送
+    const streamingMessage = messages.find(msg => msg.status === 'streaming');
+    if (streamingMessage) {
+      // 立即更新UI状态
+      setMessages(prev => prev.map(m => 
+        m.id === streamingMessage.id ? { ...m, status: 'sent' as MessageStatus } : m
+      ));
+      // 更新数据库状态
+      messageDb.updateMessageStatus(streamingMessage.id, 'sent')
+        .catch(err => console.error('更新消息状态失败:', err));
+    }
+  }, [setIsGenerating, messages, setMessages]);
 
   // 语音输入
   const handleVoiceInput = useCallback(() => {

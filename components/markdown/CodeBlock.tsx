@@ -116,7 +116,7 @@ const CodeBlock = ({ literal, language }: Props) => {
       {!collapsed && (
         <ScrollView
           horizontal
-          showsHorizontalScrollIndicator={false}
+          showsHorizontalScrollIndicator={true}
           style={[
             styles.scrollView,
             { backgroundColor: isDark ? '#282c34' : '#f8f8f8' }
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   scrollView: {
-    maxHeight: 400, // 限制最大高度
+    maxHeight: 400,
   },
   codeContainer: {
     minWidth: '100%',

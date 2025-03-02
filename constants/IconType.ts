@@ -30,6 +30,11 @@ export const PROVIDER_ICONS: Record<ModelProviderId, IconConfig> = {
     name: 'deepseek',
     size: 36,
     defaultColor: '#1296db',
+  },
+  [ModelProviderId.SiliconFlow]: {
+    name: 'siliconflow',
+    size: 36,
+    defaultColor: '#8449e8', 
   }
 };
 

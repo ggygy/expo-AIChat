@@ -61,7 +61,8 @@ const MessageCard: FC<MessageCardProps> = memo(({
         
         // 助手消息根据contentType决定渲染方式
         if (message.contentType === 'markdown') {
-            // 使用我们新创建的包装组件
+            console.log('MarkdownWithCodeHighlight', message.content);
+            
             return (
                 <MarkdownWithCodeHighlight style={markdownStyles}>
                     {message.content}

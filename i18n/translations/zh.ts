@@ -166,6 +166,7 @@ export const zh = {
     deleteConfirmTitle: '删除助手',
     deleteConfirmMessage: '确定要删除这个助手吗？此操作不可恢复。',
     deleteSuccess: '删除成功',
+    deleteFailed: '删除失败',
     messages: '条消息',
     noMessages: '还没有进行任何对话',
     startChat: '开始对话',

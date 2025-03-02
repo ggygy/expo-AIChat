@@ -35,7 +35,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
       <Button
         variant="secondary"
         size="small"
-        leftIcon={<FontAwesome name="copy" size={13} color={actionButtonColor} />}
+        leftIcon={<FontAwesome name="copy" size={13} color={actionButtonColor} style={styles.icon}/>}
         onPress={onCopy}
         style={styles.actionButton}
         textStyle={{ color: actionButtonColor}}
@@ -47,7 +47,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         <Button
           variant="secondary"
           size="small"
-          leftIcon={<FontAwesome name="refresh" size={13} color={retryButtonColor} />}
+          leftIcon={<FontAwesome name="refresh" size={13} color={retryButtonColor} style={styles.icon}/>}
           onPress={onRetry}
           style={[styles.actionButton, { borderColor: retryButtonColor }]}
           textStyle={{ color: retryButtonColor}}
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
   actionButton: {
     marginLeft: 8,
     paddingHorizontal: 10,
+    marginTop: 8,
   },
   bottomRetryContainer: {
     alignItems: 'center',

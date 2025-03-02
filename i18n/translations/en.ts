@@ -167,6 +167,7 @@ export const en = {
     deleteConfirmTitle: 'Delete Assistant',
     deleteConfirmMessage: 'Are you sure you want to delete this assistant? This action cannot be undone.',
     deleteSuccess: 'Deleted successfully',
+    deleteFailed: 'Failed to delete assistant',
     messages: 'messages',
     noMessages: 'No messages yet',
     startChat: 'Start chatting',
