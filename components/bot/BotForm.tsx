@@ -203,8 +203,10 @@ export function BotForm({
           label={i18n.t('bot.systemPrompt')}
           value={systemPrompt}
           onChangeText={setSystemPrompt}
-          multiline
-          numberOfLines={4}
+          multiline={true}
+          textAlignVertical="top"
+          numberOfLines={6}
+          style={styles.multilineInput}
           hint={i18n.t('bot.systemPromptHint')}
         />
 
@@ -276,5 +278,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+  },
+  multilineInput: {
+    height: 120,
+    textAlignVertical: 'top',
+    paddingTop: 10,
   },
 });

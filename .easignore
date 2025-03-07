@@ -1,0 +1,108 @@
+# Git 相关文件
+.git/
+.gitignore
+.gitattributes
+
+# Node 模块和缓存
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# 临时文件和缓存
+.tmp/
+.temp/
+.cache/
+**/*.cache
+**/.cache
+
+# 开发环境配置文件
+.env*
+.vscode/
+.idea/
+*.sublime-*
+*.editorconfig
+
+# 构建和输出文件夹
+build/
+web-build/
+dist/
+coverage/
+.coverage/
+.nyc_output/
+_outlook/
+
+# 日志文件
+**/*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 测试相关
+__tests__/
+__mocks__/
+jest/
+jest.config.*
+**/*.test.js
+**/*.spec.js
+**/*.test.ts
+**/*.spec.ts
+**/tests/
+
+# 文档和示例
+docs/
+documentation/
+examples/
+sample/
+**/*.md
+LICENSE
+**/README*
+**/CHANGELOG*
+**/CONTRIBUTING*
+
+# 其他不需要的文件
+**/*.orig
+**/*.swp
+**/*.swo
+.history/
+.eas/
+.expo/
+.expo-cache/
+assets/raw/
+**/*.psd
+**/*.ai
+**/*.eps
+**/*.sketch
+
+# 大型依赖包内部文件
+node_modules/@prisma/engines/
+node_modules/@prisma/client/generator-build/
+node_modules/prisma/
+node_modules/langchain/dist/
+node_modules/**/*.map
+node_modules/**/*.tsbuildinfo
+node_modules/**/*.ts.map
+node_modules/**/*.d.ts
+node_modules/**/*.d.ts.map
+node_modules/**/*.d.mtsl
+
+# 字体和图片源文件
+**/*.ttf.bak
+**/*.sketch
+**/*.xd
+**/*.fig
+
+# 其他大型文件和不必要的资源
+**/*.mov
+**/*.mp4
+**/*.avi
+**/*.mkv
+**/*.zip
+**/*.tar.gz
+**/*.tgz
+**/*.rar
+**/*.7z

@@ -1,43 +1,42 @@
-import { ensureDb, addColumn } from './connection';
+import { ensureDb, columnExists, addColumn } from './connection';
 
 /**
  * 数据库架构管理
  */
 export const schemaDb = {
   /**
-   * 确保数据库架构是最新的
+   * 确保数据库架构是最新的，添加任何缺少的列
    */
-  async ensureSchema() {
+  async ensureSchema(): Promise<boolean> {
     const database = ensureDb();
     try {
-      console.log('确保数据库架构完整...');
+      console.log('检查并更新数据库架构...');
       
-      // 检查并创建所需的列
-      const columns = [
-        { name: 'token_usage', type: 'TEXT' },
-        { name: 'thinking_content', type: 'TEXT' },
-        { name: 'messageType', type: 'TEXT', defaultValue: 'normal' }
-      ];
-      
-      for (const column of columns) {
-        const added = await addColumn(
-          database, 
-          'messages', 
-          column.name, 
-          column.type, 
-          column.defaultValue
-        );
-        
-        if (added) {
-          console.log(`已添加或确认 ${column.name} 列存在于 messages 表`);
-        } else {
-          console.warn(`未能确保 ${column.name} 列存在，但将继续执行`);
-        }
+      // 检查并添加思考内容列
+      const hasThinkingColumn = await columnExists(database, 'messages', 'thinking_content');
+      if (!hasThinkingColumn) {
+        console.log('添加 thinking_content 列到 messages 表...');
+        await addColumn(database, 'messages', 'thinking_content', 'TEXT');
       }
       
+      // 检查并添加令牌使用列
+      const hasTokenUsage = await columnExists(database, 'messages', 'token_usage');
+      if (!hasTokenUsage) {
+        console.log('添加 token_usage 列到 messages 表...');
+        await addColumn(database, 'messages', 'token_usage', 'TEXT');
+      }
+      
+      // 检查并添加消息类型列
+      const hasMessageType = await columnExists(database, 'messages', 'messageType');
+      if (!hasMessageType) {
+        console.log('添加 messageType 列到 messages 表...');
+        await addColumn(database, 'messages', 'messageType', 'TEXT', 'normal');
+      }
+      
+      console.log('数据库架构更新完成');
       return true;
     } catch (error) {
-      console.error('确保数据库架构失败:', error);
+      console.error('更新数据库架构失败:', error);
       return false;
     }
   },

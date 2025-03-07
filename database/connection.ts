@@ -90,6 +90,8 @@ export const initDatabase = async () => {
           chatId TEXT NOT NULL,
           role TEXT NOT NULL,
           content TEXT NOT NULL,
+          thinking_content TEXT,
+          token_usage TEXT,
           timestamp INTEGER NOT NULL,
           contentType TEXT DEFAULT 'text',
           status TEXT DEFAULT 'sent' CHECK(status IN ('sending', 'streaming', 'sent', 'error')),

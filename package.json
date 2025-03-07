@@ -3,13 +3,19 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "npx expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
+    "android": "npx expo run:android",
+    "ios": "npx expo run:ios",
+    "web": "npx expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "npx expo lint",
+    "build:android": "npx eas build --platform android --profile production --no-wait",
+    "build:ios": "npx eas build --platform ios --profile production --no-wait",
+    "build:all": "npx eas build --platform all --profile production --no-wait",
+    "prebuild:android": "node ./scripts/prepare-prebuild.js && npx expo prebuild --platform android",
+    "prebuild:ios": "node ./scripts/prepare-prebuild.js && npx expo prebuild --platform ios",
+    "prepare-prebuild": "node ./scripts/prepare-prebuild.js"
   },
   "jest": {
     "preset": "jest-expo"
@@ -23,11 +29,14 @@
     "@langchain/groq": "^0.1.3",
     "@langchain/openai": "^0.4.4",
     "@prisma/client": "^6.4.1",
-    "@react-native-async-storage/async-storage": "1.21.0",
-    "@react-native-community/slider": "^4.5.5",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/slider": "4.5.5",
+    "@react-native/js-polyfills": "^0.78.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@shopify/flash-list": "1.7.3",
+    "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "expo": "~52.0.31",
     "expo-blur": "~14.0.3",
     "expo-clipboard": "^7.0.1",
@@ -37,13 +46,14 @@
     "expo-haptics": "~14.0.1",
     "expo-image": "~2.0.4",
     "expo-linking": "~7.0.5",
-    "expo-localization": "~14.0.0",
+    "expo-localization": "~16.0.1",
     "expo-router": "~4.0.17",
     "expo-splash-screen": "~0.29.21",
     "expo-sqlite": "~15.1.2",
     "expo-status-bar": "~2.0.1",
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.8",
+    "expo-updates": "~0.27.1",
     "expo-web-browser": "~14.0.2",
     "i18n-js": "^4.3.2",
     "langchain": "^0.3.15",
@@ -64,6 +74,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native/metro-config": "^0.73.5",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",
@@ -72,5 +83,17 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
+  },
+  "resolutions": {
+    "metro": "^0.81.0",
+    "metro-resolver": "^0.81.0",
+    "metro-config": "^0.81.0"
+  }
 }

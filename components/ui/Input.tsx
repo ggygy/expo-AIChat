@@ -34,7 +34,7 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input = forwardRef<TextInput, InputProps>(
-  ({ error, label, hint, rightIcon, rightAction, containerStyle, inputWrapperStyle, style, secureTextEntry, styleProps, ...props }, ref) => {
+  ({ error, label, hint, rightIcon, rightAction, containerStyle, inputWrapperStyle, style, secureTextEntry, styleProps, multiline, ...props }, ref) => {
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'];
@@ -83,7 +83,7 @@ export const Input = forwardRef<TextInput, InputProps>(
         color: inputColors.hint,
       },
       inputWrapper: {
-        height: combinedStyleProps.height,
+        height: multiline ? undefined : combinedStyleProps.height, // 多行输入不限制高度
         borderRadius: combinedStyleProps.borderRadius,
         backgroundColor: inputColors.background,
         borderColor: error ? inputColors.error : inputColors.border,
@@ -142,7 +142,12 @@ export const Input = forwardRef<TextInput, InputProps>(
             {label}
           </Text>
         )}
-        <View style={[styles.inputWrapper, dynamicStyles.inputWrapper, inputWrapperStyle]}>
+        <View style={[
+          styles.inputWrapper, 
+          dynamicStyles.inputWrapper,
+          multiline && styles.multilineWrapper,
+          inputWrapperStyle
+        ]}>
           <TextInput
             ref={ref}
             style={[
@@ -152,11 +157,13 @@ export const Input = forwardRef<TextInput, InputProps>(
                 color: inputColors.text,
                 backgroundColor: inputColors.background,
               },
+              multiline && styles.multilineInput,
               style
             ]}
             placeholderTextColor={inputColors.placeholder}
             selectionColor={inputColors.tint}
             secureTextEntry={secureTextEntry && !isPasswordVisible}
+            multiline={multiline}
             {...props}
           />
           {renderRightIcon()}
@@ -234,5 +241,14 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     marginTop: 4,
+  },
+  multilineWrapper: {
+    minHeight: 120,
+  },
+  multilineInput: {
+    height: 'auto',
+    paddingTop: 10,
+    paddingBottom: 10,
+    textAlignVertical: 'top',
   },
 });

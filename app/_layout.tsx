@@ -44,6 +44,7 @@ export default function RootLayout() {
   // 导航配置
   const screenOptions = useMemo(() => ({
     headerShown: true,
+    headerTransparent: true,
     animationDuration: 300,
     headerStyle: {
       backgroundColor: currentTheme.colors.background,
@@ -54,8 +55,11 @@ export default function RootLayout() {
       flex: 1
     },
     contentStyle: {
-      backgroundColor: 'transparent'
-    }
+      backgroundColor: 'transparent',
+      flex: 1,
+    },
+    headerBackTitleVisible: false,
+    headerShadowVisible: false,
   }), [currentTheme]);
 
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function RootLayout() {
               <Stack.Screen
                 name="config"
                 options={{
-                  animation: 'slide_from_right',
+                  // animation: 'slide_from_right',
                   title: i18n.t('settings.aiConfig.title'),
                 }}
               />
@@ -127,13 +131,14 @@ export default function RootLayout() {
                 }}
               />
             </Stack>
-            <StatusBar 
-              style={colorScheme === 'dark' ? 'light' : 'dark'} 
+            <StatusBar
+              style={colorScheme === 'dark' ? 'light' : 'dark'}
+              translucent={true}
             />
           </ThemedView>
         </GestureHandlerRootView>
       </ThemeProvider>
-      <Toast config={toastConfig} topOffset={50}/>
+      <Toast config={toastConfig} topOffset={50} />
     </SafeAreaProvider>
   );
 }

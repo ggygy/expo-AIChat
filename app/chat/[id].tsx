@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { FontAwesome } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import i18n from '@/i18n/i18n';
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatActions } from '@/hooks/useChatActions';
 import { useChatSelection } from '@/hooks/useChatSelection';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
     // 获取参数和基础设置
@@ -25,18 +26,17 @@ export default function ChatScreen() {
     const messageListRef = useRef<MessageListRef>(null);
     const getBotInfo = useBotStore(state => state.getBotInfo);
     const botInfo = getBotInfo(id);
-    
+
     // 使用消息管理hook
-    const { 
-        messages, 
+    const {
+        messages,
         setMessages,
-        isLoading, 
-        handleLoadMore, 
-        totalMessages, 
+        isLoading,
+        handleLoadMore,
+        totalMessages,
         setTotalMessages,
         deleteMessages,
         isFirstLoadRef,
-        messagesLengthRef,
         manualRefresh,
         shouldScrollToBottom, // 获取滚动标志
         setShouldScrollToBottom // 获取设置滚动标志的方法
@@ -96,26 +96,26 @@ export default function ChatScreen() {
                 if (setShouldScrollToBottom) {
                     setShouldScrollToBottom(true);
                 }
-            }, 300);
+            }, 2000);
             return () => clearTimeout(timer);
         }
     }, [messages.length, isLoading, setShouldScrollToBottom]);
-    
+
     // 当发送新消息后，确保滚动到底部
     const handleSendMessageWithScroll = useCallback((text: string) => {
         // 先设置滚动标志
         if (setShouldScrollToBottom) {
             setShouldScrollToBottom(true);
         }
-        
+
         // 然后发送消息
         const result = handleSendMessage(text);
-        
+
         // 延迟执行滚动，确保新消息已渲染
         setTimeout(() => {
             messageListRef.current?.scrollToEnd(true);
-        }, 100);
-        
+        }, 500);
+
         return result;
     }, [handleSendMessage, setShouldScrollToBottom]);
 
@@ -123,12 +123,12 @@ export default function ChatScreen() {
     useLayoutEffect(() => {
         navigation.setOptions({
             headerTitleAlign: 'center',
-            title: isSelectMode 
-                ? `${selectedMessages.size} ${i18n.t('chat.selectedCount')}` 
+            title: isSelectMode
+                ? `${selectedMessages.size} ${i18n.t('chat.selectedCount')}`
                 : botInfo?.name || 'Chat',
             headerRight: () => (
                 isSelectMode ? (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={() => setShowDeleteDialog(true)}
                         style={styles.headerButton}
                     >
@@ -136,13 +136,13 @@ export default function ChatScreen() {
                     </TouchableOpacity>
                 ) : (
                     <View style={styles.headerButtonContainer}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={manualRefresh}
                             style={styles.headerButton}
                         >
                             <FontAwesome name="refresh" size={16} color={iconColor} />
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             onPress={() => router.push(`/editBot/${id}`)}
                             style={styles.headerButton}
                         >
@@ -153,7 +153,7 @@ export default function ChatScreen() {
             ),
             headerLeft: () => (
                 isSelectMode ? (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={handleCancelSelect}
                         style={styles.headerButton}
                     >
@@ -163,7 +163,7 @@ export default function ChatScreen() {
             ),
         });
     }, [
-        navigation, botInfo, iconColor, errorColor, id, 
+        navigation, botInfo, iconColor, errorColor, id,
         isSelectMode, selectedMessages.size, handleCancelSelect, router,
         manualRefresh // 添加新依赖
     ]);
@@ -212,33 +212,36 @@ export default function ChatScreen() {
     ]);
 
     return (
-        <View style={[styles.safeArea, { backgroundColor }]}>
-            <TouchableWithoutFeedback onPress={dismissKeyboard}>
-                <View style={[styles.container, { backgroundColor }]}>
-                    <MessageList
-                        ref={messageListRef}
-                        {...messageListProps}
+        <SafeAreaProvider>
+            <View style={[styles.safeArea, { backgroundColor }]}>
+                <TouchableWithoutFeedback onPress={dismissKeyboard}>
+                    <View style={[styles.container, { backgroundColor }]}>
+                        <MessageList
+                            ref={messageListRef}
+                            {...messageListProps}
+                        />
+                    </View>
+                </TouchableWithoutFeedback>
+                {!isSelectMode && (
+                    <ChatInput
+                        onSendMessage={handleSendMessageWithScroll} // 使用封装后的方法
+                        onVoiceInput={handleVoiceInput}
+                        onFileUpload={handleFileUpload}
                     />
-                </View>
-            </TouchableWithoutFeedback>
-            {!isSelectMode && (
-                <ChatInput
-                    onSendMessage={handleSendMessageWithScroll} // 使用封装后的方法
-                    onVoiceInput={handleVoiceInput}
-                    onFileUpload={handleFileUpload}
-                />
-            )}
-        </View>
+                )}
+            </View>
+        </SafeAreaProvider>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
+        marginTop: Platform.OS === 'ios' ? 78 : 85,
     },
     container: {
         flex: 1,
-        marginBottom: 65,
+        marginBottom: 50,
     },
     messageList: {
         flex: 1,
@@ -246,9 +249,10 @@ const styles = StyleSheet.create({
     headerButtonContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        height: 55
     },
     headerButton: {
-        padding: 10,
+        paddingHorizontal: 10,
         marginHorizontal: 4,
     },
 });

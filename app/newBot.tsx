@@ -2,9 +2,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useProviderStore } from '@/store/useProviderStore';
 import { useBotStore } from '@/store/useBotStore';
+import { BotForm, BotFormData } from '@/components/bot/BotForm';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
 import i18n from '@/i18n/i18n';
-import { BotForm, BotFormData } from '@/components/bot/BotForm';
+
 
 export default function NewBotScreen() {
   const router = useRouter();
@@ -34,15 +37,15 @@ export default function NewBotScreen() {
     setIsSubmitting(true);
     try {
       const providerInfo = providers.find(p => p.id === data.providerId);
-      
+
       addBot({
         ...data,
         description: `${data.modelId}`,
         lastMessageAt: undefined,
         lastMessagePreview: undefined,
         messagesCount: undefined,
-      }); 
-      
+      });
+
       Toast.show({
         type: 'success',
         text1: i18n.t('bot.createSuccess'),
@@ -60,12 +63,21 @@ export default function NewBotScreen() {
   }, [addBot, providers]);
 
   return (
-    <BotForm
-      providerItems={providerItems}
-      onProviderChange={handleProviderChange}
-      onSubmit={handleCreateBot}
-      submitText={i18n.t('bot.create')}
-      isSubmitting={isSubmitting}
-    />
+    <SafeAreaView style={styles.safeArea}>
+      <BotForm
+        providerItems={providerItems}
+        onProviderChange={handleProviderChange}
+        onSubmit={handleCreateBot}
+        submitText={i18n.t('bot.create')}
+        isSubmitting={isSubmitting}
+      />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    marginTop: Platform.OS === 'ios' ? 44 : 56,
+  },
+});

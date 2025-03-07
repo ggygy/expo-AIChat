@@ -73,10 +73,14 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
     }
 
     setIsTesting(true);
-    showInfo(i18n.t('config.testing'));
+    showInfo(i18n.t('config.testingConnection'));
 
     try {
       const provider = ProviderFactory.createProvider(providerId as ModelProviderId);
+      if (!provider) {
+        showError(i18n.t('config.providerNotFound'));
+        throw new Error('Provider not found');
+      }
       provider.initialize({
         vendor: providerId as ModelProviderId,
         apiKey: config.apiKey,
@@ -91,11 +95,11 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
       if (result.success) {
         showSuccess(i18n.t('config.testSuccess'));
       } else {
-        const errorCode = result.error?.code || 'unknown';
+        const errorCode = result.error?.code || 'unknownError';
         Toast.show({
-           type: 'error',
+          type: 'error',
           text1: i18n.t('config.testFailed'),
-          text2: i18n.t(`config.${errorCode}`, { defaultValue: result.error?.message }),
+          text2: i18n.t(`config.${errorCode}`, { defaultValue: result.error?.message || i18n.t('common.unknownError') }),
         });
       }
     } catch (error) {
@@ -103,7 +107,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
       Toast.show({
         type: 'error',
         text1: i18n.t('config.testFailed'),
-        text2: error instanceof Error ? error.message : 'Unknown error',
+        text2: error instanceof Error ? error.message : i18n.t('common.unknownError'),
       });
     }
   };

@@ -1,135 +1,120 @@
 import * as SQLite from 'expo-sqlite';
 import { initDatabase } from './index';
+import { ensureDb, columnExists, addColumn } from './connection';
 
 /**
- * 数据库诊断工具 - 用于检查和报告数据库结构
+ * 数据库诊断结果接口
  */
-export async function diagnoseDatabase(): Promise<{
+interface DiagnosisResult {
   success: boolean;
   tables: string[];
-  tableSchemas: Record<string, any[]>;
-  error?: string;
-}> {
+  tableSchemas: Record<string, {name: string, type: string}[]>;
+  integrityCheck: string;
+  message: string;
+}
+
+/**
+ * 数据库修复结果接口
+ */
+interface RepairResult {
+  success: boolean;
+  message: string;
+  details: string[];
+}
+
+/**
+ * 诊断数据库健康状况
+ */
+export async function diagnoseDatabase(): Promise<DiagnosisResult> {
+  const database = ensureDb();
+  const result: DiagnosisResult = {
+    success: true,
+    tables: [],
+    tableSchemas: {},
+    integrityCheck: '',
+    message: '数据库诊断完成'
+  };
+  
   try {
-    // 确保数据库已初始化
-    await initDatabase();
-    
-    // 使用异步API代替同步API
-    const db = await SQLite.openDatabaseAsync('chat.db');
-    
-    // 获取所有表
-    const tablesResult = await db.getAllAsync<{ name: string }>(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+    // 检查所有表
+    const tablesResult = await database.getAllAsync<{name: string}>(
+      `SELECT name FROM sqlite_master WHERE type='table'`
     );
+    result.tables = tablesResult.map(table => table.name);
     
-    const tables = tablesResult ? tablesResult.map(row => row.name) : [];
-    console.log('数据库中的表:', tables);
-    
-    // 获取每个表的结构
-    const tableSchemas: Record<string, any[]> = {};
-    for (const table of tables) {
-      const schemaResult = await db.getAllAsync(`PRAGMA table_info('${table}');`);
-      tableSchemas[table] = schemaResult || [];
-      console.log(`表 ${table} 的结构:`, schemaResult);
+    // 对每个表进行架构检查
+    for (const table of result.tables) {
+      const schemaResult = await database.getAllAsync<{name: string, type: string}>(
+        `PRAGMA table_info(${table})`
+      );
+      result.tableSchemas[table] = schemaResult;
     }
     
-    return {
-      success: true,
-      tables,
-      tableSchemas
-    };
+    // 运行完整性检查
+    const integrityResult = await database.getFirstAsync<{integrity_check: string}>(
+      `PRAGMA integrity_check`
+    );
+    result.integrityCheck = integrityResult?.integrity_check || '';
+    
+    if (result.integrityCheck !== 'ok') {
+      result.success = false;
+      result.message = '数据库完整性检查失败';
+    }
+    
+    return result;
   } catch (error) {
-    console.error('数据库诊断失败:', error);
-    return {
-      success: false,
-      tables: [],
-      tableSchemas: {},
-      error: error instanceof Error ? error.message : '未知错误'
-    };
+    result.success = false;
+    result.message = `数据库诊断失败: ${error instanceof Error ? error.message : '未知错误'}`;
+    return result;
   }
 }
 
 /**
- * 尝试修复数据库中可能的问题
+ * 尝试修复数据库问题
  */
-export async function tryRepairDatabase(): Promise<{
-  success: boolean;
-  repairAttempted: boolean;
-  message: string;
-}> {
+export async function tryRepairDatabase(): Promise<RepairResult> {
+  const database = ensureDb();
+  const result: RepairResult = {
+    success: true,
+    message: '数据库修复完成',
+    details: []
+  };
+  
   try {
-    // 先运行诊断
-    const diagnosis = await diagnoseDatabase();
-    if (!diagnosis.success) {
-      return {
-        success: false,
-        repairAttempted: false,
-        message: `诊断失败: ${diagnosis.error}`
-      };
-    }
+    // 1. 尝试添加缺少的列
+    const requiredColumns = [
+      { table: 'messages', column: 'thinking_content', type: 'TEXT' },
+      { table: 'messages', column: 'token_usage', type: 'TEXT' },
+      { table: 'messages', column: 'messageType', type: 'TEXT', defaultValue: 'normal' }
+    ];
     
-    // 如果已有列，无需修复
-    if (
-      diagnosis.tables.includes('messages') && 
-      diagnosis.tableSchemas['messages'] && 
-      diagnosis.tableSchemas['messages'].some(col => col.name === 'thinking_content') &&
-      diagnosis.tableSchemas['messages'].some(col => col.name === 'token_usage')
-    ) {
-      return {
-        success: true,
-        repairAttempted: false,
-        message: '数据库结构正常，无需修复'
-      };
-    }
-    
-    // 使用异步API代替同步API
-    const db = await SQLite.openDatabaseAsync('chat.db');
-    
-    // 尝试添加缺失的列
-    let repairAttempted = false;
-    let repairMessage = '';
-    
-    try {
-      if (!diagnosis.tableSchemas['messages']?.some(col => col.name === 'thinking_content')) {
-        await db.execAsync(`ALTER TABLE messages ADD COLUMN thinking_content TEXT;`);
-        repairAttempted = true;
-        repairMessage += '已添加thinking_content列; ';
+    for (const { table, column, type, defaultValue } of requiredColumns) {
+      const exists = await columnExists(database, table, column);
+      if (!exists) {
+        result.details.push(`添加列 ${table}.${column}`);
+        await addColumn(database, table, column, type, defaultValue);
+      } else {
+        result.details.push(`列 ${table}.${column} 已存在`);
       }
-    } catch (e) {
-      repairMessage += `添加thinking_content失败: ${e instanceof Error ? e.message : '未知错误'}; `;
     }
     
-    try {
-      if (!diagnosis.tableSchemas['messages']?.some(col => col.name === 'token_usage')) {
-        await db.execAsync(`ALTER TABLE messages ADD COLUMN token_usage TEXT;`);
-        repairAttempted = true;
-        repairMessage += '已添加token_usage列; ';
-      }
-    } catch (e) {
-      repairMessage += `添加token_usage失败: ${e instanceof Error ? e.message : '未知错误'}; `;
-    }
+    // 2. 尝试VACUUM数据库以优化存储
+    result.details.push('执行数据库VACUUM操作');
+    await database.execAsync('VACUUM');
     
-    try {
-      if (!diagnosis.tableSchemas['messages']?.some(col => col.name === 'messageType')) {
-        await db.execAsync(`ALTER TABLE messages ADD COLUMN messageType TEXT DEFAULT 'normal';`);
-        repairAttempted = true;
-        repairMessage += '已添加messageType列; ';
-      }
-    } catch (e) {
-      repairMessage += `添加messageType失败: ${e instanceof Error ? e.message : '未知错误'}; `;
-    }
+    // 3. 重建索引
+    result.details.push('重建消息索引');
+    await database.execAsync(`
+      DROP INDEX IF EXISTS idx_messages_chatId;
+      DROP INDEX IF EXISTS idx_messages_timestamp;
+      CREATE INDEX idx_messages_chatId ON messages(chatId);
+      CREATE INDEX idx_messages_timestamp ON messages(timestamp);
+    `);
     
-    return {
-      success: true,
-      repairAttempted,
-      message: repairAttempted ? `修复尝试完成: ${repairMessage}` : '无需修复'
-    };
+    return result;
   } catch (error) {
-    console.error('修复数据库失败:', error);
-    return {
-      success: false,
-      repairAttempted: true,
-      message: `修复失败: ${error instanceof Error ? error.message : '未知错误'}`
-    };
+    result.success = false;
+    result.message = `数据库修复失败: ${error instanceof Error ? error.message : '未知错误'}`;
+    return result;
   }
 }

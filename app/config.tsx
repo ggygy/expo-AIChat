@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { FlatList, StyleSheet, ListRenderItemInfo } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { FlatList, StyleSheet, ListRenderItemInfo, Platform } from 'react-native';
 import { useProviderStore, ProviderConfig } from '@/store/useProviderStore';
 import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 import { AddProviderList } from '@/components/provider/AddProviderList';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ModelConfigModal from '@/components/provider/ModelConfigModal';
 import ProviderCard from '@/components/provider/ProviderCard';
 import i18n from '@/i18n/i18n';
+
 
 const ConfigScreen = () => {
   const backgroundColor = useThemeColor({}, 'background');
@@ -55,9 +57,10 @@ const ConfigScreen = () => {
   ), [availableProviders, handleAddProvider]);
 
   return (
-    <>
+    <SafeAreaView style={styles.safeArea}>
       <FlatList
         style={[styles.container, { backgroundColor }]}
+        contentContainerStyle={styles.contentContainer}
         data={providers}
         renderItem={renderProvider}
         keyExtractor={item => item.id}
@@ -69,15 +72,22 @@ const ConfigScreen = () => {
         visible={!!selectedProviderId}
         onClose={() => setSelectedProviderId(null)}
       />
-    </>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    marginTop: Platform.OS === 'ios' ? 44 : 56,
+  },
   container: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 16,
     paddingVertical: 5,
+    paddingBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,

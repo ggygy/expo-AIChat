@@ -5,7 +5,6 @@ import {
   Platform, 
   KeyboardAvoidingView, 
   TouchableOpacity, 
-  Pressable,
   Keyboard,
   LayoutAnimation,
   TouchableWithoutFeedback,
@@ -19,6 +18,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import i18n from '@/i18n/i18n';
+import { SafeAreaBottomPadding } from '../ui/SafeAreaBottomPadding';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -44,6 +44,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const inputColors = colors.input;
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'text');
+  const backgroundColor = useThemeColor({}, 'background');
   const shouldShowExpand = contentHeight > 80;
 
   const handleSend = () => {
@@ -140,12 +141,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <View style={styles.wrapper}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
         style={styles.keyboardView}
       >
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <ThemedView style={styles.outerContainer}>
+          <ThemedView style={[
+            styles.outerContainer,
+            { backgroundColor } // 确保背景色正确
+          ]}>
             <ThemedView
               style={[
                 styles.container,
@@ -219,14 +223,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 4,
   },
   keyboardView: {
-    zIndex: -1,
+    width: '100%',
   },
   outerContainer: {
     paddingHorizontal: 8,
-    backgroundColor: 'transparent',
     paddingVertical: 8,
+    width: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
   },
   container: {
     flexDirection: 'row',
