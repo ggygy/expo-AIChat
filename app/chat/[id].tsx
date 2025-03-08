@@ -1,28 +1,23 @@
-import React, { useLayoutEffect, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { FontAwesome } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useBotStore } from '@/store/useBotStore';
 import ChatInput from '@/components/chat/ChatInput';
 import MessageList, { MessageListRef } from '@/components/chat/MessageList';
-import i18n from '@/i18n/i18n';
 
 // 导入自定义hooks
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatActions } from '@/hooks/useChatActions';
 import { useChatSelection } from '@/hooks/useChatSelection';
+import { useChatNavigation } from '@/hooks/useChatNavigation'; // 导入新的hook
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
-    // 获取参数和基础设置
     const { id } = useLocalSearchParams<{ id: string }>();
     const backgroundColor = useThemeColor({}, 'cardBackground');
     const iconColor = useThemeColor({}, 'text');
     const errorColor = useThemeColor({}, 'error');
-    const navigation = useNavigation();
-    const router = useRouter();
     const messageListRef = useRef<MessageListRef>(null);
     const getBotInfo = useBotStore(state => state.getBotInfo);
     const botInfo = getBotInfo(id);
@@ -36,10 +31,11 @@ export default function ChatScreen() {
         totalMessages,
         setTotalMessages,
         deleteMessages,
+        addMessage,
         isFirstLoadRef,
         manualRefresh,
-        shouldScrollToBottom, // 获取滚动标志
-        setShouldScrollToBottom // 获取设置滚动标志的方法
+        shouldScrollToBottom,
+        setShouldScrollToBottom
     } = useChatMessages(id);
 
     // 使用消息操作hook
@@ -50,7 +46,7 @@ export default function ChatScreen() {
         handleVoiceInput,
         handleFileUpload,
         isGenerating
-    } = useChatActions(id, messages, setMessages, totalMessages, setTotalMessages);
+    } = useChatActions(id, messages, setMessages, totalMessages, setTotalMessages, addMessage); // 添加 addMessage 参数
 
     // 使用消息选择hook
     const {
@@ -66,40 +62,29 @@ export default function ChatScreen() {
         handleDeleteConfirm
     } = useChatSelection(deleteMessages);
 
+    // 使用导航配置hook，并获取header高度
+    const { headerHeight } = useChatNavigation({
+        botName: botInfo?.name,
+        iconColor,
+        errorColor,
+        botId: id,
+        isSelectMode,
+        selectedMessagesCount: selectedMessages.size,
+        handleCancelSelect,
+        setShowDeleteDialog,
+        manualRefresh,
+        headerHeight: Platform.OS === 'ios' ? 60 : 75 // 自定义header高度
+    });
+
     // 监控消息状态，不再需要基于消息长度自动滚动
     // 实际的滚动逻辑已经在 MessageList 组件内部处理
     useEffect(() => {
         // 仅第一次进入页面时记录日志
         if (isFirstLoadRef.current && messages.length > 0) {
             console.log('首次加载完成，有消息数量:', messages.length);
+            isFirstLoadRef.current = false;
         }
     }, [messages.length, isFirstLoadRef]);
-
-    // 首次加载后，滚动到底部
-    useEffect(() => {
-        if (isFirstLoadRef.current && messages.length > 0) {
-            isFirstLoadRef.current = false;
-            const timer = setTimeout(() => {
-                messageListRef.current?.scrollToEnd(true);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [messages]);
-
-    // 优化：确保首次进入聊天页面时立即滚动到最新消息
-    useEffect(() => {
-        // 当消息加载完成后滚动到底部
-        if (messages.length > 0 && !isLoading) {
-            const timer = setTimeout(() => {
-                messageListRef.current?.scrollToEnd(false);
-                // 双保险：强制标记为应该滚动到底部
-                if (setShouldScrollToBottom) {
-                    setShouldScrollToBottom(true);
-                }
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
-    }, [messages.length, isLoading, setShouldScrollToBottom]);
 
     // 当发送新消息后，确保滚动到底部
     const handleSendMessageWithScroll = useCallback((text: string) => {
@@ -108,65 +93,11 @@ export default function ChatScreen() {
             setShouldScrollToBottom(true);
         }
 
-        // 然后发送消息
+        // 发送消息
         const result = handleSendMessage(text);
-
-        // 延迟执行滚动，确保新消息已渲染
-        setTimeout(() => {
-            messageListRef.current?.scrollToEnd(true);
-        }, 500);
-
+        
         return result;
     }, [handleSendMessage, setShouldScrollToBottom]);
-
-    // 设置导航栏配置
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerTitleAlign: 'center',
-            title: isSelectMode
-                ? `${selectedMessages.size} ${i18n.t('chat.selectedCount')}`
-                : botInfo?.name || 'Chat',
-            headerRight: () => (
-                isSelectMode ? (
-                    <TouchableOpacity
-                        onPress={() => setShowDeleteDialog(true)}
-                        style={styles.headerButton}
-                    >
-                        <FontAwesome name="trash" size={20} color={errorColor} />
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.headerButtonContainer}>
-                        <TouchableOpacity
-                            onPress={manualRefresh}
-                            style={styles.headerButton}
-                        >
-                            <FontAwesome name="refresh" size={16} color={iconColor} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => router.push(`/editBot/${id}`)}
-                            style={styles.headerButton}
-                        >
-                            <FontAwesome name="navicon" size={16} color={iconColor} />
-                        </TouchableOpacity>
-                    </View>
-                )
-            ),
-            headerLeft: () => (
-                isSelectMode ? (
-                    <TouchableOpacity
-                        onPress={handleCancelSelect}
-                        style={styles.headerButton}
-                    >
-                        <FontAwesome name="times" size={20} color={iconColor} />
-                    </TouchableOpacity>
-                ) : undefined
-            ),
-        });
-    }, [
-        navigation, botInfo, iconColor, errorColor, id,
-        isSelectMode, selectedMessages.size, handleCancelSelect, router,
-        manualRefresh // 添加新依赖
-    ]);
 
     // 键盘消失
     const dismissKeyboard = useCallback(() => {
@@ -213,9 +144,23 @@ export default function ChatScreen() {
 
     return (
         <SafeAreaProvider>
-            <View style={[styles.safeArea, { backgroundColor }]}>
+            <View style={[
+                styles.safeArea, 
+                { 
+                    backgroundColor,
+                    // 根据headerHeight调整顶部外边距
+                    marginTop: Platform.OS === 'ios' ? headerHeight + 14 : headerHeight + 20
+                }
+            ]}>
                 <TouchableWithoutFeedback onPress={dismissKeyboard}>
-                    <View style={[styles.container, { backgroundColor }]}>
+                    <View style={[
+                      styles.container, 
+                      { 
+                        backgroundColor,
+                        // 根据是否正在生成消息增加底部边距
+                        marginBottom: isGenerating ? 60 : 50
+                      }
+                    ]}>
                         <MessageList
                             ref={messageListRef}
                             {...messageListProps}
@@ -224,7 +169,7 @@ export default function ChatScreen() {
                 </TouchableWithoutFeedback>
                 {!isSelectMode && (
                     <ChatInput
-                        onSendMessage={handleSendMessageWithScroll} // 使用封装后的方法
+                        onSendMessage={handleSendMessageWithScroll}
                         onVoiceInput={handleVoiceInput}
                         onFileUpload={handleFileUpload}
                     />
@@ -237,11 +182,10 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        marginTop: Platform.OS === 'ios' ? 78 : 85,
     },
     container: {
         flex: 1,
-        marginBottom: 50,
+        // 移除这里的固定marginBottom，因为我们在上面动态设置了
     },
     messageList: {
         flex: 1,

@@ -13,7 +13,8 @@ export function useChatActions(
   messages: Message[],
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void,
   totalMessages: number,
-  setTotalMessages: (count: number | ((prev: number) => number)) => void
+  setTotalMessages: (count: number | ((prev: number) => number)) => void,
+  addMessage?: (message: Message) => void // 新增可选参数
 ) {
   const { sendMessage, isGenerating, setIsGenerating } = useAIChat(chatId);
   const updateBotStats = useBotStore(state => state.updateBotStats);
@@ -34,7 +35,13 @@ export function useChatActions(
     try {
       // 立即添加用户消息并保存到数据库
       await messageDb.addMessage(chatId, userMessage);
-      setMessages(prev => [...prev, userMessage]);
+      
+      // 使用 addMessage 如果可用，否则回退到 setMessages
+      if (addMessage) {
+        addMessage(userMessage);
+      } else {
+        setMessages(prev => [...prev, userMessage]);
+      }
 
       // 发送消息并处理响应
       await sendMessage(userMessage, async (updatedMessages) => {
@@ -44,13 +51,18 @@ export function useChatActions(
           role: msg.id === userMessage.id ? 'user' : 'assistant' as 'user' | 'assistant' | 'system'
         }));
         
-        // 更新消息列表
-        setMessages(prev => {
-          const filtered = prev.filter(msg => 
-            !validatedMessages.find(m => m.id === msg.id)
-          );
-          return [...filtered, ...validatedMessages];
-        });
+        // 使用 addMessage 如果可用
+        if (addMessage && validatedMessages.length > 0) {
+          validatedMessages.forEach(msg => addMessage(msg));
+        } else {
+          // 原有逻辑
+          setMessages(prev => {
+            const filtered = prev.filter(msg => 
+              !validatedMessages.find(m => m.id === msg.id)
+            );
+            return [...filtered, ...validatedMessages];
+          });
+        }
         
         // 更新消息总数和机器人统计
         const newTotal = totalMessages + 1;
@@ -73,7 +85,7 @@ export function useChatActions(
       console.error('Failed to handle message:', error);
       return false;
     }
-  }, [chatId, sendMessage, totalMessages, updateBotStats, setMessages, setTotalMessages]);
+  }, [chatId, sendMessage, totalMessages, updateBotStats, setMessages, setTotalMessages, addMessage]);
 
   // 重试失败的消息
   const handleRetry = useCallback(async (messageId: string) => {

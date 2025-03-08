@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { Text, StyleSheet, Platform } from 'react-native';
 import { 
   KEYWORDS, 
@@ -514,4 +514,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default SimpleCodeHighlighter;
+export default memo(SimpleCodeHighlighter);

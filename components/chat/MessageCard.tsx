@@ -1,19 +1,18 @@
-import React, { FC, memo } from 'react';
+import React, { FC, memo, useEffect, useRef } from 'react';
 import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Message } from '@/constants/chat';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { showSuccess, showError } from '@/utils/toast';
 import { getMarkdownStyles } from '@/constants/MarkdownStyles';
-import MessageActions from './MessageActions';
-import i18n from '@/i18n/i18n';
+import { useMessageActions } from '@/hooks/useMessageActions';
 import ThinkingContent from './ThinkingContent';
 import NormalContent from './NormalContent';
 import MessageStatusIndicator from './MessageStatusIndicator';
+import ActionMenu from './ActionMenu';
+import TextSelectionOverlay from './TextSelectionOverlay';
 
 interface MessageCardProps {
     message: Message;
@@ -22,6 +21,10 @@ interface MessageCardProps {
     onPress?: () => void;
     isSelected?: boolean;
     selectable?: boolean;
+    onEnterSelectMode?: () => void;
+    onDeleteMessage?: (messageId: string) => void;
+    // 添加流式消息标记
+    isStreaming?: boolean;
 }
 
 const MessageCard: FC<MessageCardProps> = ({
@@ -30,16 +33,41 @@ const MessageCard: FC<MessageCardProps> = ({
     onLongPress,
     onPress,
     isSelected,
-    selectable
+    selectable,
+    onEnterSelectMode,
+    onDeleteMessage,
+    isStreaming
 }) => {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'].chat;
     const textColor = useThemeColor({}, 'text');
     const tintColor = useThemeColor({}, 'tint');
     const isUser = message.role === 'user';
-    const isError = message.status === 'error';
+    const isNormalContent = message.contentType === 'markdown' || message.contentType === 'text';
     
-    // 获取 Markdown 样式
+    // 使用自定义Hook处理消息操作
+    const { 
+      menuVisible, 
+      menuPosition, 
+      handleLongPress, 
+      closeMenu, 
+      getMenuActions,
+      cleanup,
+      isReading,
+      textSelectionOverlayVisible,
+      handleCloseTextSelectionOverlay,
+    } = useMessageActions({
+      message,
+      onRetry,
+      onEnterSelectMode,
+      onDeleteMessage: onDeleteMessage ? () => onDeleteMessage(message.id) : undefined,
+      colors,
+      retryColor: colors.retryButton,
+      deleteColor: colors.error || '#ff3b30',
+      iconColor: textColor
+    });
+    
+    // Markdown 样式配置
     const markdownStyles = getMarkdownStyles({
         colorScheme: colorScheme || 'light',
         textColor,
@@ -62,23 +90,13 @@ const MessageCard: FC<MessageCardProps> = ({
       }
     };
 
-    const handleCopyText = async () => {
-        try {
-            // 如果有思考内容，复制两部分内容
-            const textToCopy = message.thinkingContent 
-              ? `${i18n.t('chat.thinking')}:\n${message.thinkingContent}\n\n${i18n.t('chat.answer')}:\n${message.content}`
-              : message.content;
-              
-            await Clipboard.setStringAsync(textToCopy);
-            showSuccess('common.copySuccess');
-        } catch (error) {
-            console.error('复制失败:', error);
-            showError('common.copyError');
-        }
-    };
-
     // 确保只在选择模式下才显示选择状态
     const showSelected = selectable && isSelected;
+    
+    // 组件卸载时清理资源
+    useEffect(() => {
+      return cleanup;
+    }, []);
 
     return (
         <View style={styles.messageCardWrapper}>
@@ -86,10 +104,12 @@ const MessageCard: FC<MessageCardProps> = ({
                 style={[
                     styles.container,
                     isUser ? styles.userContainer : styles.botContainer,
-                    showSelected && [styles.selectedContainer, { backgroundColor: colors.selectedBubbleBg }]
+                    showSelected && [styles.selectedContainer, { backgroundColor: colors.selectedBubbleBg }],
+                    // 添加流式消息的视觉反馈
+                    isStreaming && styles.streamingContainer
                 ]}
                 activeOpacity={1}
-                onLongPress={onLongPress}
+                onLongPress={handleLongPress}
                 onPress={onPress}
                 delayLongPress={500}
             >
@@ -113,14 +133,18 @@ const MessageCard: FC<MessageCardProps> = ({
                              backgroundColor: colors.botBubble, 
                              borderColor: colors.botBubbleBorder 
                            }],
-                    { shadowColor: colors.bubbleShadowColor }
+                    { shadowColor: colors.bubbleShadowColor },
+                    isStreaming && styles.streamingBubble,
+                    isReading && styles.readingBubble
                 ]}>
                     <View style={styles.contentContainer}>
-                        {/* 消息内容区 - 直接在JSX中渲染，不使用renderContent函数 */}
-                        {message.content || message.thinkingContent ? (
+                        {/* 消息内容区 - 直接使用message内容，不缓存 */}
+                        {(message.content || message.thinkingContent) ? (
                             isUser ? (
-                                /* 用户消息总是使用普通文本 */
-                                <ThemedText style={styles.messageText}>{message.content}</ThemedText>
+                                /* 用户消息总是使用普通文本，添加可选择特性 */
+                                <ThemedText style={styles.messageText} selectable={true}>
+                                    {message.content}
+                                </ThemedText>
                             ) : (
                                 /* AI助手消息 */
                                 <View style={styles.contentContainer}>
@@ -141,11 +165,12 @@ const MessageCard: FC<MessageCardProps> = ({
                                     )}
                                     
                                     {/* 正常回答内容 */}
-                                    {message.content && (
+                                    {message.content && isNormalContent && (
                                         <NormalContent
                                             content={message.content}
-                                            contentType={message.contentType || 'markdown'}
+                                            contentType={message.contentType || 'markdown' as any}
                                             markdownStyles={markdownStyles}
+                                            isStreaming={isStreaming}
                                         />
                                     )}
                                 </View>
@@ -160,19 +185,6 @@ const MessageCard: FC<MessageCardProps> = ({
                             errorColor={colors.error}
                         />
                     </View>
-                    
-                    {/* 操作按钮组件 - 仅针对助手 */}
-                    {!isUser && (
-                        <MessageActions
-                            isError={isError}
-                            onRetry={onRetry}
-                            onCopy={handleCopyText}
-                            actionButtonColor={colors.actionButtonText}
-                            retryButtonColor={colors.retryButton} 
-                            dividerColor={colors.divider}
-                            showBottomRetryButton={isError && !!onRetry}
-                        />
-                    )}
                 </View>
 
                 {/* 用户消息选择框 */}
@@ -186,16 +198,36 @@ const MessageCard: FC<MessageCardProps> = ({
                     </View>
                 )}
             </TouchableOpacity>
+
+            {/* 气泡操作菜单 */}
+            <ActionMenu
+                visible={menuVisible}
+                onClose={closeMenu}
+                actions={getMenuActions()}
+                position={menuPosition}
+                backgroundColor={colors.botBubble}
+                textColor={textColor}
+                maxItemsPerRow={5}
+            />
+            
+            {/* 文本选择浮层 */}
+            <TextSelectionOverlay
+                visible={textSelectionOverlayVisible}
+                content={message.content}
+                thinkingContent={message.thinkingContent}
+                onClose={handleCloseTextSelectionOverlay}
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     messageCardWrapper: {
-        marginVertical: 4,
+        marginVertical: 0,
     },
     container: {
-        padding: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
         flexDirection: 'row',
     },
     userContainer: {
@@ -308,6 +340,20 @@ const styles = StyleSheet.create({
     },
     normalContent: {
         marginTop: 8,
+    },
+    readingBubble: {
+        borderColor: '#4e9bff',
+        borderWidth: 1,
+    },
+    // 流式消息容器样式
+    streamingContainer: {
+        opacity: 1,
+    },
+    
+    // 流式消息气泡样式
+    streamingBubble: {
+        borderColor: '#4e9bff',
+        borderWidth: 1,
     },
 });
 

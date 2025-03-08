@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 16,
-    paddingBottom: 150,
+    paddingBottom: 50,
   },
   form: {
     paddingHorizontal: 16,

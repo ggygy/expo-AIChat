@@ -24,6 +24,7 @@ interface ConfigStore {
   addCustomModel: (providerId: string, model: ModelInfo) => void;
   deleteCustomModel: (providerId: string, modelId: string) => void;
   refreshProviders: () => void;
+  getActiveProvider: () => ProviderConfig | undefined;
 }
 
 export const useProviderStore = create<ConfigStore>()(
@@ -107,6 +108,9 @@ export const useProviderStore = create<ConfigStore>()(
           activeProviderId: currentState.activeProviderId
         });
       },
+      getActiveProvider: () => {
+        return get().providers.find(p => p.isActive);
+      }
     }),
     {
       name: 'config-storage',

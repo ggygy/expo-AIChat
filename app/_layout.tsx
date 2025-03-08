@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -18,6 +18,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { toastConfig } from '@/components/toastConfig';
 import { initDatabase } from '@/database';
 import { configureLangChainFetch } from '@/utils/langchainFetchAdapter';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -32,6 +33,7 @@ export default function RootLayout() {
     Iconfont: require('../assets/fonts/iconfont.ttf'),
   });
   const [dbInitialized, setDbInitialized] = useState(false);
+  const backgroundColor = useThemeColor({}, 'background');
 
   // 根据 themeMode 确定当前主题
   const currentTheme = useMemo(() => {
@@ -47,11 +49,12 @@ export default function RootLayout() {
     headerTransparent: true,
     animationDuration: 300,
     headerStyle: {
-      backgroundColor: currentTheme.colors.background,
+      backgroundColor: backgroundColor,
     },
+    headerTitleAlign: 'center' as const,
     headerTintColor: currentTheme.colors.text,
     cardStyle: {
-      backgroundColor: currentTheme.colors.background,
+      backgroundColor: backgroundColor,
       flex: 1
     },
     contentStyle: {
@@ -97,9 +100,9 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="config"
+                name="providerConfig"
                 options={{
-                  // animation: 'slide_from_right',
+                  animation: 'slide_from_right',
                   title: i18n.t('settings.aiConfig.title'),
                 }}
               />
@@ -133,6 +136,7 @@ export default function RootLayout() {
             </Stack>
             <StatusBar
               style={colorScheme === 'dark' ? 'light' : 'dark'}
+              backgroundColor={colorScheme === 'dark' ? '#000' : '#fff'}
               translucent={true}
             />
           </ThemedView>

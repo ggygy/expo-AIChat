@@ -48,7 +48,7 @@ export default function SettingsScreen() {
       title: i18n.t('settings.aiConfig.title'),
       value: i18n.t('settings.aiConfig.description') as string,
       onPress: () => {
-        router.navigate("/config");
+        router.navigate("/providerConfig");
       },
     },
     {

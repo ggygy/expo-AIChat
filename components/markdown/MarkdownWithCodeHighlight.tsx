@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, ScrollView, Platform } from 'react-native';
 import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 import CodeBlock from './CodeBlock';
 import InlineCode from './InlineCode';
+import SelectableMarkdown from './SelectableMarkdown';
+import { ThemedText } from '../ThemedText';
 
 interface Props {
   children: string;
@@ -10,8 +12,11 @@ interface Props {
   [key: string]: any;
 }
 
-const MarkdownWithCodeHighlight = ({ children, style, ...rest }: Props) => {
-  // 创建自定义规则
+const MarkdownWithCodeHighlight = ({
+  children,
+  style,
+  ...rest
+}: Props) => {
   const customRules = {
     fence: (node: any, children: any, parent: any, styles: any) => {
       return (
@@ -41,24 +46,37 @@ const MarkdownWithCodeHighlight = ({ children, style, ...rest }: Props) => {
     }
   };
 
+  // 始终使用Markdown组件渲染，文本选择功能在上层组件中控制
   return (
-    <View>
-      <Markdown
-        style={style}
-        rules={{
-          fence: customRules.fence,
-          code_block: customRules.codeBlock,
-          code_inline: customRules.inlineCode,
-          // 添加这些备选规则名称
-          codeBlock: customRules.codeBlock,
-          inlineCode: customRules.inlineCode,
-        }}
-        {...rest}
-      >
-        {children}
-      </Markdown>
-    </View>
+    <Markdown
+      style={style}
+      rules={{
+        fence: customRules.fence,
+        code_block: customRules.codeBlock,
+        code_inline: customRules.inlineCode,
+        codeBlock: customRules.codeBlock,
+        inlineCode: customRules.inlineCode,
+      }}
+      markdownit={MarkdownIt({
+        breaks: true,
+        html: true,
+      }).disable('smartquotes')} // 配置 markdownit，避免一些默认行为可能影响滚动
+      mergeStyle={true} // 确保样式正确合并
+      {...rest}
+    >
+      {children}
+    </Markdown>
   );
+};
+
+const styles = {
+  container: {
+    width: '100%',
+  },
+  markdownText: {
+    fontSize: 15,
+    lineHeight: 24,
+  }
 };
 
 export default MarkdownWithCodeHighlight;

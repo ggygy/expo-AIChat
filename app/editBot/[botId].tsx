@@ -90,6 +90,6 @@ export default function EditBotScreen() {
 const styles = {
   safeArea: {
     flex: 1,
-    marginTop: Platform.OS === 'ios' ? 44 : 56,
+    marginTop: Platform.OS === 'ios' ? 85 : 95,
   },
 };

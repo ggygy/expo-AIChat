@@ -3,9 +3,9 @@ import i18n from '@/i18n/i18n';
 import { showSuccess, showError } from '@/utils/toast'; // 导入 Toast 辅助函数
 import { Message } from '@/constants/chat';
 
-type DeleteMessagesFunction = (messageIds: string[]) => Promise<boolean>;
+export type DeleteMessagesFunction = (messageIds: string[]) => Promise<boolean>;
 
-export function useChatSelection(onDeleteMessages: DeleteMessagesFunction) {
+export function useChatSelection(deleteMessages: DeleteMessagesFunction) {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -42,7 +42,7 @@ export function useChatSelection(onDeleteMessages: DeleteMessagesFunction) {
     
     setIsDeleting(true);
     try {
-      const result = await onDeleteMessages(Array.from(selectedMessages));
+      const result = await deleteMessages(Array.from(selectedMessages));
       
       if (result) {
         showSuccess('chat.deleteSuccess', { count: selectedMessages.size });
@@ -56,7 +56,7 @@ export function useChatSelection(onDeleteMessages: DeleteMessagesFunction) {
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
-  }, [selectedMessages, onDeleteMessages, handleCancelSelect]);
+  }, [selectedMessages, deleteMessages, handleCancelSelect]);
 
   // 退出选择模式时清除选中的消息
   useEffect(() => {

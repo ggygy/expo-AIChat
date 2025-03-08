@@ -55,6 +55,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   const [isDeleting, setIsDeleting] = useState(false);
   const iconColor = useThemeColor({}, 'text');
   const listRef = useRef<FlashList<Message>>(null);
+  const [isPreloading, setIsPreloading] = useState(false); // 新增预加载状态
   
   // 使用滚动逻辑 Hook
   const {
@@ -66,20 +67,70 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     handleScrollEndDrag,
     handleMomentumScrollEnd,
     handleBeforeLoadMore,
-    viewabilityConfig,
-    getFlashListProps
+    viewAbilityConfig,
+    getFlashListProps,
+    isScrollingInProgress,
+    handleLayout,
+    handleLoadMore, // 从 hook 中获取 handleLoadMore
+    setLoadMoreCallback,
+    // 使用新增API
+    handlePreloadMore,
+    setLoadMoreThreshold,
+    setLoadThrottleTime,
+    isLoadingMore,
+    handleMessagesChanged,
+    initialLayoutCompletedRef
   } = useMessageScroll(messages, listRef, shouldScrollToBottom, setShouldScrollToBottom);
+  
+  // 自定义预加载逻辑，增加视觉反馈
+  const triggerPreloadWithFeedback = useCallback(async () => {
+    if (isLoadingMore() || !onLoadMore) return;
+    
+    setIsPreloading(true);
+    try {
+      // 使用预加载函数
+      await handlePreloadMore();
+    } finally {
+      // 延迟关闭预加载状态，确保用户能看到视觉反馈
+      setTimeout(() => setIsPreloading(false), 500);
+    }
+  }, [handlePreloadMore, isLoadingMore, onLoadMore]);
+  
+  // 设置加载更多回调，包装原始回调以支持异步处理和视觉反馈
+  useEffect(() => {
+    if (onLoadMore) {
+      setLoadMoreCallback(() => {
+        // 返回一个函数作为真正的回调
+        return async () => {
+          // 添加延迟，模拟网络请求时间
+          await new Promise(resolve => setTimeout(resolve, 100));
+          onLoadMore();
+        };
+      });
+    }
+  }, [onLoadMore, setLoadMoreCallback]);
+  
+  // 配置预加载参数
+  useEffect(() => {
+    // 设置预加载阈值为80%（即当滚动到顶部20%位置时预加载）
+    setLoadMoreThreshold(0.8);
+    // 设置节流时间为800ms
+    setLoadThrottleTime(800);
+  }, [setLoadMoreThreshold, setLoadThrottleTime]);
   
   // 暴露滚动方法给父组件
   useImperativeHandle(ref, () => ({
     scrollToEnd
   }));
   
-  // 消息长按事件 - 进入选择模式
-  const handleLongPress = useCallback((message: Message) => {
-    requestAnimationFrame(() => {
-      setIsSelectMode(true);
-      setSelectedMessages(new Set([message.id]));
+  // 消息长按事件 - 现在通过操作菜单进入选择模式
+  const handleEnterSelectMode = useCallback(async (message: Message) => {
+    return new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        setIsSelectMode(true);
+        setSelectedMessages(new Set([message.id]));
+        resolve();
+      });
     });
   }, [setIsSelectMode, setSelectedMessages]);
   
@@ -130,6 +181,18 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     }
   }, [isDeleting]);
   
+  // 删除单个消息
+  const handleDeleteSingleMessage = useCallback((messageId: string) => {
+    if (onDeleteMessages) {
+      onDeleteMessages([messageId]);
+      Toast.show({
+        type: 'success',
+        text1: i18n.t('common.success'),
+        text2: i18n.t('chat.deleteSuccess', { count: 1 }),
+      });
+    }
+  }, [onDeleteMessages]);
+  
   // 创建用于比较的选中消息字符串
   const selectedMessagesStr = useMemo(() => 
     JSON.stringify(Array.from(selectedMessages)) + isSelectMode, 
@@ -155,25 +218,16 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       <MessageCard
         message={item}
         onRetry={item.status === 'error' ? () => onRetry?.(item.id) : undefined}
-        onLongPress={() => handleLongPress(item)}
+        onEnterSelectMode={() => handleEnterSelectMode(item)}
         onPress={() => isSelectMode && handleSelect(item)}
         isSelected={selectedMessages.has(item.id)}
         selectable={isSelectMode}
-        // 添加一个key来标记流式消息，强制实时更新
-        key={isStreamingMessage ? `${item.id}-${Date.now()}` : item.id}
+        onDeleteMessage={handleDeleteSingleMessage}
+        key={item.id}
+        isStreaming={isStreamingMessage}
       />
     );
-  }, [onRetry, handleLongPress, handleSelect, selectedMessagesStr, isSelectMode, streamingMessageIdRef.current]);
-  
-  // 列表底部加载指示器已从FlashList中移除，将在外部独立渲染
-  
-  // 处理加载更多消息 - 结合滚动优化
-  const handleLoadMore = useCallback(() => {
-    if (!isLoading && !isScrolling) {
-      handleBeforeLoadMore();
-      onLoadMore?.();
-    }
-  }, [onLoadMore, isLoading, isScrolling, handleBeforeLoadMore]);
+  }, [onRetry, handleSelect, selectedMessagesStr, isSelectMode, handleEnterSelectMode, streamingMessageIdRef.current, handleDeleteSingleMessage]);
   
   // 停止生成的处理函数
   const handleStopGeneration = useCallback((e: any) => {
@@ -184,68 +238,95 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     }
   }, [onStopGeneration]);
   
-  // 添加初始加载后的效果来滚动到底部
-  useEffect(() => {
-    if (messages.length > 0) {
-      // 在组件挂载后及消息变化时尝试滚动
-      const timer = setTimeout(() => {
-        scrollToEnd(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, []); // 空依赖数组确保只在挂载时执行一次
+  // 使用一个统一的消息滚动管理器
+  const messageScrollManagerRef = useRef({
+    hasInitialScrolled: false,
+    lastScrolledMessagesLength: 0,
+    lastScrollTime: 0
+  });
   
-  // 确保顺畅滚动，特别是对流式消息
-  useEffect(() => {
-    // 如果存在流式消息则自动滚动到底部
-    if (streamingMessageIdRef.current && !isScrolling) {
-      scrollToEnd(false);
-    }
-  }, [messages, isScrolling, streamingMessageIdRef.current]);
-  
-  // 追踪流式消息内容
+  // 追踪流式消息内容长度变化
   const lastContentLengthRef = useRef<Record<string, number>>({});
   
-  // 跟踪流式消息状态变化
+  // 跟踪消息变化是否来自于初始加载
+  const isFirstLoadRef = useRef(true);
+  
+  // 统一使用effect监听消息变化，与布局事件协调
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (isFirstLoadRef.current) {
+        // 首次加载消息时，让布局事件处理滚动
+        console.log('首次加载消息，等待布局事件处理滚动');
+        isFirstLoadRef.current = false;
+      } else if (initialLayoutCompletedRef.current) {
+        // 非首次加载且布局已完成，处理滚动
+        handleMessagesChanged();
+      }
+    }
+  }, [messages, handleMessagesChanged, initialLayoutCompletedRef]);
+  
+  // 使用更明确的布局处理函数
+  const handleListLayout = useCallback((event: any) => {
+    console.log('触发FlashList布局事件');
+    handleLayout();
+  }, [handleLayout]);
+  
+  // 简化流式消息的滚动逻辑，统一使用上面的处理器
   useEffect(() => {
     // 检测是否有流式消息更新
     const streamingMessage = messages.find(m => m.status === 'streaming');
-    if (streamingMessage) {
+    
+    if (streamingMessage && 
+        shouldScrollToBottom?.current && 
+        !isScrolling && 
+        !isScrollingInProgress() && 
+        initialLayoutCompletedRef.current) {
+      // 内容长度节流，不是每次内容更新都滚动
       const msgId = streamingMessage.id;
       const contentLength = streamingMessage.content.length;
       
-      // 如果内容长度大幅增加，需要滚动到底部
+      // 只在内容有显著变化时滚动
       if (!lastContentLengthRef.current[msgId] || 
-          contentLength - (lastContentLengthRef.current[msgId] || 0) > 30) {
+          contentLength - (lastContentLengthRef.current[msgId] || 0) > 50) {
         
         // 更新记录的内容长度
         lastContentLengthRef.current[msgId] = contentLength;
         
-        // 如果应该滚动到底部且不是用户手动滚动中
-        if (shouldScrollToBottom?.current && !isScrolling) {
-          // 使用requestAnimationFrame确保在下一帧绘制前滚动
-          requestAnimationFrame(() => {
-            scrollToEnd(true);
-          });
-        }
+        // 使用统一的滚动逻辑
+        handleMessagesChanged();
       }
     }
-  }, [messages, scrollToEnd, isScrolling, shouldScrollToBottom]);
+  }, [messages, handleMessagesChanged, isScrolling, shouldScrollToBottom, isScrollingInProgress, initialLayoutCompletedRef]);
+  
+  // 添加时间引用
+  const lastAutoScrollTimeRef = useRef(0);
   
   // 获取FlashList特定配置
   const flashListProps = getFlashListProps();
   
   return (
     <View style={styles.container}>
+      {/* 预加载指示器 */}
+      {isPreloading && !isLoading && (
+        <View style={styles.preloadingIndicator}>
+          <ActivityIndicator size="small" color="#007AFF" />
+        </View>
+      )}
+      
       <FlashList
         ref={listRef}
         data={messages}
         renderItem={renderMessage}
+        inverted={false}
         estimatedItemSize={flashListProps.estimatedItemSize}
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.2}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+        onEndReachedThreshold={0.3}
+        showsVerticalScrollIndicator={true}
+        onLayout={handleListLayout} // 使用更明确的布局处理函数
+        contentContainerStyle={{
+          paddingVertical: 8,
+          paddingBottom: isGenerating ? 80 : 60
+        }}
         extraData={selectedMessagesStr}
         keyExtractor={(item) => item.id || `item-${item.timestamp}`}
         onScroll={handleScroll}
@@ -253,8 +334,8 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         onViewableItemsChanged={handleViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        disableAutoLayout={flashListProps.disableAutoLayout}
+        viewabilityConfig={viewAbilityConfig}
+        disableAutoLayout={false}
         drawDistance={flashListProps.drawDistance}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
@@ -262,6 +343,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
           minIndexForVisible: 0,
           autoscrollToTopThreshold: 10
         }}
+        scrollEventThrottle={16}
       />
       
       {/* 加载指示器和停止生成按钮作为独立组件 */}
@@ -303,8 +385,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // contentContainer 样式可以保留在这里，但我们将直接在 contentContainerStyle 属性中使用
   contentContainer: {
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   // 浮动在底部的加载指示器和停止按钮容器
   floatingFooterContainer: {
@@ -320,7 +403,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   stopButton: {
-    padding: 6,
+    padding: 9,
     borderRadius: 24,
     zIndex: 20,
   },
@@ -335,6 +418,19 @@ const styles = StyleSheet.create({
   toolbarInfo: {
     flex: 1,
     alignItems: 'center',
+  },
+  // 新增预加载指示器样式
+  preloadingIndicator: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginHorizontal: 140,
   },
 });
 

@@ -1,332 +1,263 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Message } from '@/constants/chat';
 import { messageDb } from '@/database';
-import { useBotStore } from '@/store/useBotStore';
-import { AppState, AppStateStatus } from 'react-native';
 
-// 定义消息状态的类型，确保与 Message 接口兼容
-type MessageStatus = 'sending' | 'streaming' | 'sent' | 'error';
-
-export function useChatMessages(chatId: string, pageSize = 15) {
+/**
+ * 消息管理Hook - 使用本地数据库加载消息，添加优化的批量加载和预加载功能
+ */
+export function useChatMessages(chatId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [totalMessages, setTotalMessages] = useState(0);
-  const messagesLengthRef = useRef(0);
   const isFirstLoadRef = useRef(true);
-  const isLoadingRef = useRef(false);
+  const shouldScrollToBottomRef = useRef(true);
+  const lastLoadTimestampRef = useRef(0);
+  const offsetRef = useRef(0);
+  const batchSizeRef = useRef(20); // 每次加载的消息数量
+  const isPreloadingRef = useRef(false); // 是否正在预加载
   
-  // 使用ref来防止重复加载
-  const lastFocusTimeRef = useRef(0);
-  const appStateRef = useRef(AppState.currentState);
+  // 初始加载消息
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadInitialMessages = async () => {
+      if (!chatId) return;
+      
+      setIsLoading(true);
+      try {
+        // 从本地数据库加载消息
+        const result = await messageDb.getMessages(chatId, batchSizeRef.current, 0);
+        // 使用 getMessageCount 方法获取消息总数，或者根据结果长度确定
+        const count = await messageDb.getMessageCount(chatId);
+        
+        if (isMounted) {
+          if (result && result.length > 0) {
+            // 修改排序方式：按时间戳升序排序（最旧的消息在前面，最新的在后面）
+            const sortedMessages = [...result].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            setMessages(sortedMessages);
+            offsetRef.current = result.length;
+          }
+          setTotalMessages(count || 0);
+          lastLoadTimestampRef.current = Date.now();
+        }
+      } catch (error) {
+        console.error('加载聊天消息失败:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadInitialMessages();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [chatId]);
   
-  // 从 botStore 获取更新统计数据的方法
-  const updateBotStats = useBotStore(state => state.updateBotStats);
-
-  // 新增：记录是否需要滚动到底部
-  const shouldScrollToBottom = useRef(true);
-  // 新增：记录是否是首次加载更多消息
-  const isFirstLoadMore = useRef(true);
-
-  // 加载消息
-  const loadMessages = useCallback(async (pageNum: number) => {
-    if (isLoadingRef.current || (!hasMore && pageNum > 0)) return;
+  // 加载更多消息 - 优化版本，从本地数据库加载
+  const handleLoadMore = useCallback(async () => {
+    if (!chatId || isLoading || isPreloadingRef.current) return;
     
-    // 修改防抖逻辑 - 只在非强制加载模式下执行防抖
-    const now = Date.now();
-    const isRecentLoad = now - lastFocusTimeRef.current < 500;
-    
-    // 添加强制加载参数，在初次加载时忽略防抖
-    const forceLoad = pageNum === 0 && isFirstLoadRef.current;
-    
-    if (isRecentLoad && pageNum === 0 && !forceLoad) {
-      console.log('跳过重复加载 - 时间间隔太短');
+    // 节流控制: 如果距离上次加载不足1秒，则不执行
+    const currentTime = Date.now();
+    if (currentTime - lastLoadTimestampRef.current < 1000) {
       return;
     }
     
-    lastFocusTimeRef.current = now;
+    // 如果没有更多消息可加载，提前返回
+    if (messages.length >= totalMessages) {
+      return;
+    }
     
-    console.log(`开始加载消息, chatId: ${chatId}, page: ${pageNum}, 强制加载: ${forceLoad}`);
-    isLoadingRef.current = true;
+    isPreloadingRef.current = true;
     setIsLoading(true);
     
     try {
-      // 首先获取消息总数，以便更新机器人统计信息
-      const count = await messageDb.getMessageCount(chatId);
-      console.log(`消息总数: ${count}`);
-      setTotalMessages(count);
+      // 使用requestAnimationFrame执行异步操作，避免阻塞UI
+      await new Promise(resolve => requestAnimationFrame(resolve));
       
-      // 如果是初始加载且有足够多消息，则直接从最新的消息开始显示
-      let offset = pageNum * pageSize;
-      if (pageNum === 0 && count > pageSize && isFirstLoadRef.current) {
-        offset = Math.max(0, count - pageSize);
-        console.log(`首次加载，从偏移量 ${offset} 开始加载最新消息`);
-        // 强制设置滚动标志为true
-        shouldScrollToBottom.current = true;
+      const offset = offsetRef.current;
+      console.log(`加载更多消息: 偏移=${offset}, 批量大小=${batchSizeRef.current}`);
+      
+      // 从本地数据库加载更多消息
+      const olderMessages = await messageDb.getMessages(chatId, batchSizeRef.current, offset);
+      
+      // 自适应批量大小：根据加载速度调整
+      const loadingTime = Date.now() - currentTime;
+      if (loadingTime < 300 && batchSizeRef.current < 40) {
+        batchSizeRef.current = Math.min(40, batchSizeRef.current + 5);
+      } else if (loadingTime > 1000 && batchSizeRef.current > 15) {
+        batchSizeRef.current = Math.max(15, batchSizeRef.current - 5);
       }
       
-      const newMessages = await messageDb.getMessages(chatId, pageSize, offset);
-      console.log(`从数据库加载到的消息: ${newMessages.length}, 偏移量: ${offset}`);
-      
-      if (pageNum > 0 && newMessages.length < pageSize) {
-        setHasMore(false);
-      }
-      
-      // 确保消息按时间顺序排列 - 明确使用时间戳进行排序
-      const validatedMessages = newMessages
-        .map(msg => ({
-          ...msg,
-          role: msg.role as 'user' | 'assistant' | 'system',
-          timestamp: msg.timestamp || Date.now() // 确保有时间戳
-        }))
-        .sort((a, b) => a.timestamp - b.timestamp); // 明确按时间戳升序排序
-      
-      if (pageNum === 0) {
-        console.log('设置初始消息，总数:', validatedMessages.length);
-        setMessages(validatedMessages);
-        messagesLengthRef.current = validatedMessages.length;
-        // 初始加载应该滚动到底部
-        shouldScrollToBottom.current = true;
-      } else {
-        console.log('追加更多消息');
-        setMessages(prev => {
-          // 检查是否有重复消息并保持顺序
-          const existingIds = new Set(prev.map(m => m.id));
-          const uniqueMessages = validatedMessages.filter(m => !existingIds.has(m.id));
+      if (olderMessages && olderMessages.length > 0) {
+        setMessages(oldMessages => {
+          // 使用Map去重，避免重复消息
+          const messageMap = new Map<string, Message>();
           
-          // 如果是加载更早的消息，则添加到前面，并确保整体排序正确
-          const newMessages = [...uniqueMessages, ...prev]
-            .sort((a, b) => a.timestamp - b.timestamp); // 确保整体排序正确
-            
-          messagesLengthRef.current = newMessages.length;
+          // 先添加现有消息
+          oldMessages.forEach(msg => {
+            messageMap.set(msg.id, msg);
+          });
           
-          // 加载更多消息时不应该自动滚动到底部
-          shouldScrollToBottom.current = false;
+          // 添加新消息，并检查重复
+          olderMessages.forEach(msg => {
+            if (!messageMap.has(msg.id)) {
+              messageMap.set(msg.id, msg);
+            }
+          });
+          
+          // 转换回数组并排序 - 修改为按时间戳升序排序
+          const newMessages = Array.from(messageMap.values())
+            .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+          
+          // 更新偏移量
+          offsetRef.current += olderMessages.length;
+          
           return newMessages;
         });
         
-        // 标记已经进行过一次加载更多操作
-        if (isFirstLoadMore.current) {
-          isFirstLoadMore.current = false;
-        }
-      }
-      
-      setPage(pageNum);
-      
-      // 更新机器人统计信息
-      if (count > 0 && validatedMessages.length > 0) {
-        // 获取最新的消息（时间戳最大的）
-        const lastMessage = [...validatedMessages].sort((a, b) => b.timestamp - a.timestamp)[0];
-        updateBotStats(chatId, {
-          messagesCount: count,
-          lastMessageAt: lastMessage.timestamp,
-          lastMessagePreview: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')
-        });
-      }
-      
-      // 首次加载完成后重置标志
-      if (pageNum === 0) {
-        isFirstLoadRef.current = false;
+        lastLoadTimestampRef.current = currentTime;
       }
     } catch (error) {
-      console.error('加载消息失败:', error);
+      console.error('加载更多消息失败:', error);
     } finally {
-      isLoadingRef.current = false;
+      setIsLoading(false);
+      // 延迟重置预加载状态，避免短时间内多次触发
+      setTimeout(() => {
+        isPreloadingRef.current = false;
+      }, 300);
+    }
+  }, [chatId, isLoading, messages.length, totalMessages]);
+  
+  // 手动刷新聊天记录
+  const manualRefresh = useCallback(async () => {
+    if (!chatId) return;
+    
+    setIsLoading(true);
+    offsetRef.current = 0;
+    
+    try {
+      // 重新获取消息总数，使用正确的方法名
+      const count = await messageDb.getMessageCount(chatId);
+      
+      // 重新获取第一批消息
+      const result = await messageDb.getMessages(chatId, batchSizeRef.current, 0);
+      
+      if (result && result.length > 0) {
+        // 修改排序方式：按时间戳升序排序
+        const sortedMessages = [...result].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        setMessages(sortedMessages);
+        offsetRef.current = result.length;
+      } else {
+        setMessages([]);
+      }
+      
+      setTotalMessages(count || 0);
+      lastLoadTimestampRef.current = Date.now();
+      shouldScrollToBottomRef.current = true;
+    } catch (error) {
+      console.error('刷新聊天记录失败:', error);
+    } finally {
       setIsLoading(false);
     }
-  }, [chatId, hasMore, updateBotStats, pageSize]);
+  }, [chatId]);
   
-  // 处理加载更多消息 - 加载较早的消息（向上加载）
-  const handleLoadMore = useCallback(() => {
-    if (hasMore && !isLoadingRef.current) {
-      console.log('加载更多早期消息');
-      // 当向上滚动加载更多时，设置不自动滚动到底部
-      shouldScrollToBottom.current = false;
-      loadMessages(page + 1);
-    }
-  }, [loadMessages, page, hasMore]);
-  
-  // 重新加载消息
-  const refreshMessages = useCallback(() => {
-    isFirstLoadRef.current = true;
-    setPage(0);
-    setHasMore(true);
-    loadMessages(0);
-  }, [loadMessages]);
-  
-  // 监控应用状态变化
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (
-        appStateRef.current.match(/inactive|background/) && 
-        nextAppState === 'active'
-      ) {
-        console.log('应用从后台恢复，刷新消息');
-        refreshMessages();
-      }
-      appStateRef.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [refreshMessages]);
-  
-  // 修改聚焦效果，确保能够加载初始消息
-  useFocusEffect(
-    useCallback(() => {
-      // 强制设置初次加载标志为true，确保消息能被加载
-      if (messages.length === 0) {
-        console.log('消息列表为空，设置为首次加载');
-        isFirstLoadRef.current = true;
-      }
-      
-      if (isFirstLoadRef.current) {
-        console.log('首次聚焦，强制加载消息');
-        shouldScrollToBottom.current = true;
-        // 延迟一点加载以确保组件完全挂载
-        setTimeout(() => {
-          loadMessages(0);
-        }, 50);
-      } else {
-        console.log('非首次聚焦，跳过消息加载');
-      }
-      
-      return () => {
-        console.log('页面失去焦点');
-      };
-    }, [loadMessages, messages.length])
-  );
-
-  // 更新消息列表 - 确保按时间戳正确排序
-  const updateMessages = useCallback((newMessages: Message[]) => {
-    // 如果更新包含流式消息，设置滚动标志为 true
-    if (newMessages.some(msg => msg.status === 'streaming')) {
-      shouldScrollToBottom.current = true;
-    }
+  // 删除消息 - 修改返回类型为 Promise<boolean>
+  const deleteMessages = useCallback(async (messageIds: string[]): Promise<boolean> => {
+    if (!messageIds.length) return true; // 如果没有消息要删除，直接返回成功
     
-    setMessages((prev: Message[]) => {
-      const filtered = prev.filter(msg => 
-        !newMessages.find(m => m.id === msg.id)
-      );
-      // 合并并按时间戳排序
-      return [...filtered, ...newMessages]
-        .sort((a, b) => a.timestamp - b.timestamp);
-    });
-  }, []);
-  
-  // 添加消息 - 添加新消息时应该滚动到底部
-  const appendMessage = useCallback((message: Message) => {
-    // 设置滚动标志为 true，确保添加消息时会自动滚动到底部
-    shouldScrollToBottom.current = true;
-    setMessages((prev: Message[]) => {
-      // 确保按时间戳排序
-      return [...prev, message]
-        .sort((a, b) => a.timestamp - b.timestamp);
-    });
-  }, []);
-  
-  // 更新消息状态，确保流式状态时设置滚动标志
-  const updateMessageStatus = useCallback((messageId: string, status: MessageStatus, error?: string) => {
-    // 当状态为流式时，确保滚动到底部
-    if (status === 'streaming') {
-      shouldScrollToBottom.current = true;
-    }
-    
-    setMessages((prev: Message[]) => prev.map(m => 
-      m.id === messageId ? {
-        ...m,
-        status: status as MessageStatus,
-        error
-      } : m
-    ));
-  }, []);
-
-  // 删除消息
-  const deleteMessages = useCallback(async (messageIds: string[]) => {
     try {
-      await Promise.all(messageIds.map(id => messageDb.deleteMessage(id)));
-      setMessages(prev => prev.filter(msg => !messageIds.includes(msg.id)));
+      // 乐观更新：立即从UI中移除消息
+      setMessages(prevMessages => 
+        prevMessages.filter(msg => !messageIds.includes(msg.id))
+      );
       
-      // 更新消息总数
-      const newTotal = totalMessages - messageIds.length;
-      setTotalMessages(newTotal);
+      // 调整总消息数
+      setTotalMessages(prev => Math.max(0, prev - messageIds.length));
       
-      // 更新机器人统计
-      if (newTotal > 0) {
-        const remainingMessages = messages.filter(msg => !messageIds.includes(msg.id));
-        if (remainingMessages.length > 0) {
-          const lastMessage = remainingMessages[remainingMessages.length - 1];
-          updateBotStats(chatId, {
-            messagesCount: newTotal,
-            lastMessageAt: lastMessage.timestamp,
-            lastMessagePreview: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '')
-          });
-        }
-      } else {
-        updateBotStats(chatId, {
-          messagesCount: 0,
-          lastMessageAt: undefined,
-          lastMessagePreview: undefined
-        });
+      // 异步删除数据库中的消息
+      for (const messageId of messageIds) {
+        await messageDb.deleteMessage(messageId);
       }
       
-      return true;
+      // 更新偏移量
+      offsetRef.current = Math.max(0, offsetRef.current - messageIds.length);
+      
+      return true; // 删除成功返回 true
     } catch (error) {
-      console.error('Failed to delete messages:', error);
-      return false;
+      console.error('删除消息失败:', error);
+      // 如果删除失败，重新获取最新消息
+      manualRefresh();
+      return false; // 删除失败返回 false
     }
-  }, [messages, totalMessages, updateBotStats, chatId]);
-
-  // 添加一个debug方法，用于检查当前加载的消息
-  const debugMessages = useCallback(() => {
-    console.log('当前消息列表:', messages);
-    return messages;
-  }, [messages]);
-
-  // 添加一个强制重新加载的方法
-  const forceLoadMessages = useCallback(() => {
-    console.log('强制重新加载消息');
-    isFirstLoadRef.current = true;
-    lastFocusTimeRef.current = 0; // 重置时间戳，确保不会跳过加载
-    setPage(0);
-    setHasMore(true);
-    loadMessages(0);
-  }, [loadMessages]);
-
-  // 用这个替代原来的manualRefresh方法
-  const manualRefresh = useCallback(() => {
-    console.log('手动刷新消息');
-    forceLoadMessages();
-  }, [forceLoadMessages]);
-
-  // 重置滚动标识
-  const setShouldScrollToBottom = useCallback((value: boolean = true) => {
-    shouldScrollToBottom.current = value;
+  }, [chatId, manualRefresh]);
+  
+  // 添加单条消息到列表
+  const addMessage = useCallback((message: Message) => {
+    setMessages(prev => {
+      // 检查消息是否已存在
+      const exists = prev.some(m => m.id === message.id);
+      if (exists) {
+        // 如果消息已存在，则更新它
+        return prev.map(m => m.id === message.id ? message : m)
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); // 修改为按时间戳升序排序
+      } else {
+        // 否则添加新消息 - 新消息应该添加到数组末尾而不是开头
+        return [...prev, message]
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); // 修改为按时间戳升序排序
+      }
+    });
+    
+    // 增加总消息计数
+    setTotalMessages(prev => prev + 1);
+    
+    // 增加偏移量
+    offsetRef.current += 1;
   }, []);
-
+  
+  // 设置是否应该滚动到底部
+  const setShouldScrollToBottom = useCallback((value: boolean) => {
+    shouldScrollToBottomRef.current = value;
+  }, []);
+  
+  // 启用预加载的函数，可以由组件调用
+  const enablePreloading = useCallback(() => {
+    if (isPreloadingRef.current || isLoading || messages.length >= totalMessages) return;
+    
+    isPreloadingRef.current = true;
+    
+    // 执行预加载
+    const preload = async () => {
+      try {
+        if (messages.length < totalMessages) {
+          await handleLoadMore();
+        }
+      } catch (error) {
+        console.error('预加载失败:', error);
+      } finally {
+        isPreloadingRef.current = false;
+      }
+    };
+    
+    preload();
+  }, [handleLoadMore, isLoading, messages.length, totalMessages]);
+  
   return {
     messages,
     setMessages,
     isLoading,
-    hasMore,
+    handleLoadMore,
     totalMessages,
     setTotalMessages,
-    handleLoadMore,
-    refreshMessages,
-    loadMessages,
-    updateMessages,
-    appendMessage,
-    updateMessageStatus,
     deleteMessages,
+    addMessage,
     isFirstLoadRef,
-    messagesLengthRef,
-    debugMessages,
     manualRefresh,
-    forceLoadMessages,
-    shouldScrollToBottom,
-    setShouldScrollToBottom
+    shouldScrollToBottom: shouldScrollToBottomRef,
+    setShouldScrollToBottom,
+    enablePreloading,
   };
 }

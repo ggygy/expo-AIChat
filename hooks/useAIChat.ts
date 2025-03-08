@@ -68,11 +68,11 @@ export function useAIChat(botId: string) {
             updateIntervalRef.current = null;
           }
         }
-      }, 50); // 每50毫秒检查一次是否有更新，这个值可以根据需要调整
+      }, 80); // 减少更新间隔时间，确保流式内容能够更快显示
     }
     
-    // 如果距离上次更新时间超过100ms，立即执行一次更新
-    if (now - lastUpdateTimeRef.current > 100) {
+    // 降低强制更新的间隔，让内容显示更流畅
+    if (now - lastUpdateTimeRef.current > 150) {
       callback(messages);
       lastUpdateTimeRef.current = now;
       pendingUpdateRef.current = null;
@@ -277,6 +277,7 @@ export function useAIChat(botId: string) {
                   content: content,
                   thinkingContent: thinkingContent,
                   contentType: 'markdown' as ContentType,
+                  status: 'streaming' as MessageStatus, // 确保状态正确
                   tokenUsage: totalTokens > 0 ? {
                     total_tokens: totalTokens,
                     prompt_tokens: promptTokens,
@@ -288,8 +289,9 @@ export function useAIChat(botId: string) {
                 scheduleUiUpdate([userMsg, updatedAssistantMessage], onUpdate);
                 
                 // 定期保存内容到数据库
-                const contentChanged = content.length - lastSaveLength > 100;
-                const thinkingChanged = thinkingContent.length - lastThinkingLength > 100;
+                // 增加content变化的阈值，减少数据库更新频率
+                const contentChanged = content.length - lastSaveLength > 200;
+                const thinkingChanged = thinkingContent.length - lastThinkingLength > 200;
                 
                 if (contentChanged || thinkingChanged) {
                   // 记录当前长度，避免重复保存相同内容
@@ -309,9 +311,9 @@ export function useAIChat(botId: string) {
               }
               
               // 添加一个延时，让UI线程有机会执行其他操作
-              // 这样可以确保按钮点击等交互能够被处理
-              if (content.length % 20 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
+              // 更频繁地执行延时，但延时时间更短，使动画更流畅
+              if (content.length % 30 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 5));
               }
             }
           } catch (error) {

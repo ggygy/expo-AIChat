@@ -18,7 +18,6 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import i18n from '@/i18n/i18n';
-import { SafeAreaBottomPadding } from '../ui/SafeAreaBottomPadding';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -38,7 +37,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [contentHeight, setContentHeight] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const inputColors = colors.input;
@@ -89,7 +87,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleInputPress = (event: any) => {
-    event.stopPropagation(); // 防止触发背景点击事件
+    event.stopPropagation();
   };
 
   const renderLeftIcon = () => {
@@ -146,9 +144,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
         style={styles.keyboardView}
       >
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <ThemedView style={[
+          <View style={[
             styles.outerContainer,
-            { backgroundColor } // 确保背景色正确
           ]}>
             <ThemedView
               style={[
@@ -209,7 +206,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
               {renderRightIcons()}
             </ThemedView>
-          </ThemedView>
+          </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </View>
@@ -236,7 +233,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
     width: '100%',
-    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
+    paddingBottom: Platform.OS === 'ios' ? 4 : 6,
   },
   container: {
     flexDirection: 'row',
@@ -250,7 +247,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flex: 1,
     justifyContent: 'center',
-    minHeight: 43,
+    minHeight: 45,
   },
   input: {
     fontSize: 16,

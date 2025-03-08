@@ -11,10 +11,10 @@ import ProviderCard from '@/components/provider/ProviderCard';
 import i18n from '@/i18n/i18n';
 
 
-const ConfigScreen = () => {
+const ProviderConfigScreen = () => {
   const backgroundColor = useThemeColor({}, 'background');
   
-  const { providers, addProvider, setActiveProvider } = useProviderStore();
+  const { providers, addProvider, setActiveProvider, deleteProvider } = useProviderStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const availableProviders = MODEL_PROVIDERS.filter(
@@ -31,9 +31,10 @@ const ConfigScreen = () => {
         providerInfo={providerInfo}
         onConfigureModels={() => setSelectedProviderId(item.id)}
         onToggleActive={() => setActiveProvider(item.id)}
+        onDelete={() => deleteProvider(item.id)}
       />
     );
-  }, [setActiveProvider]);
+  }, [setActiveProvider, deleteProvider]);
 
   const handleAddProvider = useCallback((providerId: string) => {
     addProvider({ 
@@ -96,4 +97,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ConfigScreen;
+export default ProviderConfigScreen;

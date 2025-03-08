@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
@@ -7,12 +7,14 @@ import { ModelProvider } from '@/constants/ModelProviders';
 import i18n from '@/i18n/i18n';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface Props {
   provider: ProviderConfig;
   providerInfo: ModelProvider;
   onConfigureModels: () => void;
   onToggleActive: () => void;
+  onDelete: () => void;
 }
 
 function ProviderCard({
@@ -20,14 +22,29 @@ function ProviderCard({
   providerInfo,
   onConfigureModels,
   onToggleActive,
+  onDelete,
 }: Props) {
   const backgroundColor = useThemeColor({}, 'settingItemBackground');
   const linkColor = useThemeColor({}, 'link');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleOpenLink = async () => {
     if (providerInfo.apiKeyUrl) {
       await Linking.openURL(providerInfo.apiKeyUrl);
     }
+  };
+
+  const confirmDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete();
+    setShowDeleteConfirm(false);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -36,14 +53,19 @@ function ProviderCard({
         <ThemedText style={styles.providerName}>
           {providerInfo.name}
         </ThemedText>
-        {providerInfo.apiKeyUrl && (
-          <TouchableOpacity onPress={handleOpenLink} style={styles.linkButton} activeOpacity={0.6}>
-            <ThemedText style={[styles.description, { color: linkColor }]}>
-              {i18n.t('config.getApiKey')}
-            </ThemedText>
-            <IconSymbol name="chevron-right" size={16} color={linkColor} />
+        <View style={styles.headerActions}>
+          {providerInfo.apiKeyUrl && (
+            <TouchableOpacity onPress={handleOpenLink} style={styles.linkButton} activeOpacity={0.6}>
+              <ThemedText style={[styles.description, { color: linkColor }]}>
+                {i18n.t('config.getApiKey')}
+              </ThemedText>
+              <IconSymbol name="chevron-right" size={16} color={linkColor} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={confirmDelete} style={styles.deleteButton} activeOpacity={0.6}>
+            <IconSymbol name="remove-circle" size={20} color="#FF3B30" />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
       <View style={styles.buttonRow}>
         <Button
@@ -65,6 +87,16 @@ function ProviderCard({
           {provider.isActive ? i18n.t('config.active') : i18n.t('config.activate')}
         </Button>
       </View>
+      
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title={i18n.t('config.deleteProvider')}
+        message={i18n.t('config.deleteProviderConfirm', { name: providerInfo.name })}
+        confirmText={i18n.t('common.delete')}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        variant="danger"
+      />
     </View>
   );
 }
@@ -115,6 +147,14 @@ const styles = StyleSheet.create({
   },
   activeButton: {
     backgroundColor: '#4CAF50',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    marginLeft: 16,
+    padding: 4,
   },
 });
 
