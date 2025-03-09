@@ -44,7 +44,7 @@ export default function HomeScreen() {
   const handleConfirmDelete = async () => {
     if (selectedBotId) {
       try {
-        await messageDb.deleteMessages(selectedBotId);
+        await messageDb.deleteMessages([selectedBotId]);
         deleteBot(selectedBotId);
         showSuccess('bot.deleteSuccess');
       } catch (error) {

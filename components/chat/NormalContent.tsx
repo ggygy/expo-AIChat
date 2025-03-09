@@ -1,56 +1,74 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '../ThemedText';
-import Markdown from '@/components/markdown/OptimizedMarkdown';
+import OptimizedMarkdown from '@/components/markdown/OptimizedMarkdown';
+import { ContentType } from '@/constants/chat';
 
 interface NormalContentProps {
   content: string;
-  contentType?: 'text' | 'markdown';
-  markdownStyles?: any;
+  contentType: ContentType;
+  markdownStyles: any;
   isStreaming?: boolean;
 }
 
 const NormalContent: React.FC<NormalContentProps> = ({
   content,
-  contentType = 'markdown',
+  contentType,
   markdownStyles,
-  isStreaming = false,
+  isStreaming = false
 }) => {
-  // 根据是否是流式传输选择不同的渲染组件
-  if (contentType === 'markdown') {
+  // 根据内容类型渲染不同的组件
+  switch (contentType) {
+    case 'markdown':
       return (
-        <View style={styles.container}>
-          <Markdown 
-            style={markdownStyles || {}}
-            isStreaming={isStreaming} // 传递流式状态
+        <View style={styles.markdownContainer}>
+          {/* 修正：使用children属性而不是content */}
+          <OptimizedMarkdown 
+            style={markdownStyles}
+            isStreaming={isStreaming}
+            maxBlockSize={5000}
           >
             {content}
-          </Markdown>
+          </OptimizedMarkdown>
         </View>
       );
-  } else {
-    // 文本内容直接显示
-    return (
-      <View style={styles.container}>
-        <ThemedText 
-          style={styles.textContent} 
-          selectable={true}
-        >
+      
+    case 'code':
+      return (
+        <View style={styles.codeContainer}>
+          {/* 修正：使用children属性而不是content */}
+          <OptimizedMarkdown 
+            style={markdownStyles}
+            isStreaming={isStreaming}
+          >
+            {`\`\`\`\n${content}\n\`\`\``}
+          </OptimizedMarkdown>
+        </View>
+      );
+      
+    case 'text':
+    default:
+      return (
+        <ThemedText style={styles.textContent} selectable={true}>
           {content}
         </ThemedText>
-      </View>
-    );
+      );
   }
 };
 
 const styles = StyleSheet.create({
-  container: {
+  markdownContainer: {
     width: '100%',
   },
   textContent: {
     fontSize: 15,
     lineHeight: 22,
   },
+  codeContainer: {
+    width: '100%',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
 });
 
-export default NormalContent;
+export default React.memo(NormalContent);

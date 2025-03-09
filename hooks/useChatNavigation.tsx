@@ -16,6 +16,8 @@ interface UseChatNavigationProps {
   setShowDeleteDialog: (show: boolean) => void;
   manualRefresh: () => void;
   headerHeight?: number;
+  toggleSettings?: () => void; // 添加切换设置的回调
+  showSettings?: boolean; // 添加显示设置的状态
 }
 
 export function useChatNavigation({
@@ -28,7 +30,9 @@ export function useChatNavigation({
   handleCancelSelect,
   setShowDeleteDialog,
   manualRefresh,
-  headerHeight = Platform.OS === 'ios' ? 50 : 56
+  headerHeight = Platform.OS === 'ios' ? 50 : 56,
+  toggleSettings,
+  showSettings = false
 }: UseChatNavigationProps) {
   const navigation = useNavigation();
   const router = useRouter();
@@ -64,6 +68,19 @@ export function useChatNavigation({
           </View>
         ) : (
           <View style={styles.headerElementContainer}>
+            {/* 添加设置按钮 */}
+            {toggleSettings && (
+              <TouchableOpacity
+                onPress={toggleSettings}
+                style={styles.headerButton}
+              >
+                <FontAwesome5 
+                  name="cog" 
+                  size={16} 
+                  color={showSettings ? '#2196F3' : iconColor}
+                />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={manualRefresh}
               style={styles.headerButton}
@@ -116,7 +133,9 @@ export function useChatNavigation({
     router,
     manualRefresh,
     setShowDeleteDialog,
-    headerHeight
+    headerHeight,
+    toggleSettings,
+    showSettings
   ]);
   
   return {

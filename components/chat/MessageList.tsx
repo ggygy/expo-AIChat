@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import i18n from '@/i18n/i18n';
 import Toast from 'react-native-toast-message';
 import { useMessageScroll } from '@/hooks/useMessageScroll';
+import { getPlatformOptimizedFlashListProps } from '@/utils/platformFixes';
 
 interface MessageListProps {
   messages: Message[];
@@ -60,7 +61,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   // 使用滚动逻辑 Hook
   const {
     isScrolling,
-    scrollToEnd,
+    safeScrollToEnd,
     handleViewableItemsChanged,
     handleScroll,
     handleScrollBeginDrag,
@@ -118,9 +119,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     setLoadThrottleTime(800);
   }, [setLoadMoreThreshold, setLoadThrottleTime]);
   
-  // 暴露滚动方法给父组件
+  // 暴露滚动方法给父组件 - 使用安全的滚动函数
   useImperativeHandle(ref, () => ({
-    scrollToEnd
+    scrollToEnd: (animated?: boolean) => safeScrollToEnd(animated !== false)
   }));
   
   // 消息长按事件 - 现在通过操作菜单进入选择模式
@@ -248,27 +249,31 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   // 追踪流式消息内容长度变化
   const lastContentLengthRef = useRef<Record<string, number>>({});
   
-  // 跟踪消息变化是否来自于初始加载
-  const isFirstLoadRef = useRef(true);
-  
   // 统一使用effect监听消息变化，与布局事件协调
   useEffect(() => {
     if (messages.length > 0) {
-      if (isFirstLoadRef.current) {
-        // 首次加载消息时，让布局事件处理滚动
-        console.log('首次加载消息，等待布局事件处理滚动');
-        isFirstLoadRef.current = false;
-      } else if (initialLayoutCompletedRef.current) {
+      if (initialLayoutCompletedRef.current) {
         // 非首次加载且布局已完成，处理滚动
         handleMessagesChanged();
       }
     }
-  }, [messages, handleMessagesChanged, initialLayoutCompletedRef]);
+  }, [handleMessagesChanged, initialLayoutCompletedRef]);
   
-  // 使用更明确的布局处理函数
+  // 使用更明确的布局处理函数 - 通过双重检查确保列表存在
   const handleListLayout = useCallback((event: any) => {
     console.log('触发FlashList布局事件');
-    handleLayout();
+    // 检查列表是否已经初始化
+    if (listRef.current) {
+      handleLayout();
+    } else {
+      console.log('列表引用不可用，延迟处理布局事件');
+      // 如果列表不可用，延迟处理
+      setTimeout(() => {
+        if (listRef.current) {
+          handleLayout();
+        }
+      }, 100);
+    }
   }, [handleLayout]);
   
   // 简化流式消息的滚动逻辑，统一使用上面的处理器
@@ -281,28 +286,54 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         !isScrolling && 
         !isScrollingInProgress() && 
         initialLayoutCompletedRef.current) {
-      // 内容长度节流，不是每次内容更新都滚动
+      
+      // 内容长度节流，增加变化阈值，减少滚动次数
       const msgId = streamingMessage.id;
       const contentLength = streamingMessage.content.length;
       
-      // 只在内容有显著变化时滚动
+      // 显著增加阈值以减少滚动次数
       if (!lastContentLengthRef.current[msgId] || 
-          contentLength - (lastContentLengthRef.current[msgId] || 0) > 50) {
+          contentLength - (lastContentLengthRef.current[msgId] || 0) > 300) {
         
         // 更新记录的内容长度
         lastContentLengthRef.current[msgId] = contentLength;
         
-        // 使用统一的滚动逻辑
-        handleMessagesChanged();
+        // 时间节流，避免短时间内多次滚动
+        const now = Date.now();
+        if (now - lastAutoScrollTimeRef.current > 800) { // 增加间隔到800ms
+          lastAutoScrollTimeRef.current = now;
+          console.log(`流式内容更新滚动: 内容长度 ${contentLength}`);
+          
+          // 使用requestAnimationFrame确保在下一帧渲染时执行滚动
+          requestAnimationFrame(() => {
+            handleMessagesChanged();
+          });
+        }
       }
     }
   }, [messages, handleMessagesChanged, isScrolling, shouldScrollToBottom, isScrollingInProgress, initialLayoutCompletedRef]);
-  
+
+  // 优化FlashList性能配置 - 使用平台特定优化
+  const flashListProps = useMemo(() => {
+    const platformProps = getPlatformOptimizedFlashListProps();
+    return {
+      ...getFlashListProps(),
+      ...platformProps,
+      // 简化overrideItemLayout以避免错误
+      overrideItemLayout: (layout: any, item: any, index: number) => {
+        try {
+          // 简单估算消息高度
+          layout.size = platformProps.estimatedItemSize;
+        } catch (e) {
+          // 忽略任何错误
+          console.warn('布局覆盖失败', e);
+        }
+      }
+    };
+  }, [getFlashListProps]);
+
   // 添加时间引用
   const lastAutoScrollTimeRef = useRef(0);
-  
-  // 获取FlashList特定配置
-  const flashListProps = getFlashListProps();
   
   return (
     <View style={styles.container}>
@@ -319,13 +350,14 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         renderItem={renderMessage}
         inverted={false}
         estimatedItemSize={flashListProps.estimatedItemSize}
+        removeClippedSubviews={flashListProps.removeClippedSubviews}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
         showsVerticalScrollIndicator={true}
-        onLayout={handleListLayout} // 使用更明确的布局处理函数
+        onLayout={handleListLayout}
         contentContainerStyle={{
           paddingVertical: 8,
-          paddingBottom: isGenerating ? 80 : 60
+          paddingBottom: 60
         }}
         extraData={selectedMessagesStr}
         keyExtractor={(item) => item.id || `item-${item.timestamp}`}
@@ -343,10 +375,12 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
           minIndexForVisible: 0,
           autoscrollToTopThreshold: 10
         }}
-        scrollEventThrottle={16}
+        scrollEventThrottle={32}
+        overrideItemLayout={flashListProps.overrideItemLayout}
+        overScrollMode="never"
       />
-      
-      {/* 加载指示器和停止生成按钮作为独立组件 */}
+
+      {/* 加载指示器和停止生成按钮 */}
       {(isLoading || isGenerating) && (
         <View style={styles.floatingFooterContainer}>
           {isLoading && (
@@ -385,7 +419,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // contentContainer 样式可以保留在这里，但我们将直接在 contentContainerStyle 属性中使用
   contentContainer: {
     paddingVertical: 8,
   },

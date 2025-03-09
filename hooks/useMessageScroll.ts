@@ -1,6 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { FlashList } from '@shopify/flash-list';
 import { Message } from '@/constants/chat';
+import { getScrollDelay, needsSpecialScrollHandling } from '@/utils/platformFixes';
 
 /**
  * 消息列表滚动处理 Hook
@@ -22,14 +23,14 @@ export const useMessageScroll = (
   const lastContentOffsetY = useRef(0);
   const lastScrollEventTime = useRef(0);
   
-  // 新增：预加载和节流控制相关的状态
+  // 预加载和节流控制相关的状态
   const isLoadingMoreRef = useRef(false);
   const lastLoadMoreTimeRef = useRef(0);
   const scrollPositionRef = useRef(0);
   const loadMoreThresholdRef = useRef(0.7); // 当滚动到前70%时触发预加载
   const loadThrottleTimeRef = useRef(1000); // 1秒节流时间
   
-  // 增加初始布局完成标志
+  // 初始布局完成标志
   const initialLayoutCompletedRef = useRef(false);
   
   // 检查是否正在滚动
@@ -51,25 +52,65 @@ export const useMessageScroll = (
     return false;
   }, []);
   
-  // 滚动到列表底部
-  const scrollToEnd = useCallback((animated: boolean = true) => {
-    if (!listRef.current) return;
-    
+  // 安全的滚动执行器，处理多种错误情况
+  const safeScrollToEnd = useCallback((animated: boolean = true) => {
     try {
-      isScrollingInProgressRef.current = true;
-      listRef.current.scrollToEnd({ animated });
-      
-      // 添加一个计时器确保滚动状态最终会被重置
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      // 使用双重保护机制确保安全滚动
+      if (!listRef.current) {
+        console.log('scrollToEnd取消：列表不存在');
+        return;
       }
       
-      scrollTimeoutRef.current = setTimeout(() => {
-        isScrollingInProgressRef.current = false;
-      }, animated ? 500 : 100);
-    } catch (error) {
-      console.error('滚动到底部失败:', error);
-      isScrollingInProgressRef.current = false;
+      // 获取基于平台的延迟时间
+      const scrollDelay = getScrollDelay(animated);
+      
+      // 延迟执行滚动，确保UI已经完成渲染
+      setTimeout(() => {
+        if (!listRef.current) return;
+        
+        try {
+          const flashList = listRef.current;
+          
+          // 平台特定处理
+          if (needsSpecialScrollHandling()) {
+            console.log('使用平台特定滚动逻辑');
+            // 部分平台在滚动前需要重新确认渲染完成
+            setTimeout(() => {
+              try {
+                if (flashList && typeof flashList.scrollToEnd === 'function') {
+                  flashList.scrollToEnd({ animated });
+                }
+              } catch (e) {
+                console.error('平台特定滚动失败:', e);
+              }
+            }, 100);
+            return;
+          }
+          
+          // 标准处理
+          if (typeof flashList.scrollToEnd !== 'function') {
+            console.log('FlashList不支持scrollToEnd方法');
+            return;
+          }
+          
+          // 使用requestAnimationFrame确保在渲染循环中执行
+          requestAnimationFrame(() => {
+            try {
+              // 最后一层安全检查
+              if (flashList && typeof flashList.scrollToEnd === 'function') {
+                flashList.scrollToEnd({ animated });
+                console.log('安全滚动成功执行');
+              }
+            } catch (innerError) {
+              console.error('最终滚动执行失败:', innerError);
+            }
+          });
+        } catch (timeoutError) {
+          console.error('滚动超时处理失败:', timeoutError);
+        }
+      }, scrollDelay);
+    } catch (outerError) {
+      console.error('准备安全滚动失败:', outerError);
     }
   }, [listRef]);
   
@@ -114,14 +155,12 @@ export const useMessageScroll = (
     }, 150);
   }, []);
   
-  // 新增：预加载处理函数
+  // 预加载处理函数
   const handlePreloadMore = useCallback(() => {
     if (loadMoreCallbackRef.current && !isLoadingMoreRef.current) {
       console.log('触发预加载');
       isLoadingMoreRef.current = true;
       lastLoadMoreTimeRef.current = Date.now();
-      
-      // 显示轻微的加载动画
       
       // 调用加载回调
       try {
@@ -181,23 +220,31 @@ export const useMessageScroll = (
     }
   }, [messages, setShouldScrollToBottom, shouldScrollToBottom]);
   
-  // 列表布局完成 - 修改逻辑确保只在初次布局时执行滚动
+  // 列表布局完成
   const handleLayout = useCallback(() => {
+    // 添加防抖保护，避免多次触发
     if (!initialLayoutCompletedRef.current) {
-      // 给列表一些时间进行渲染
+      console.log('准备首次布局滚动...');
+      
+      // 给列表一些时间进行渲染，使用更长的延时以确保布局完全完成
       setTimeout(() => {
-        if (listRef.current) {
-          console.log('首次布局完成后滚动到底部');
-          try {
-            scrollToEnd(false);
-            initialScrollCompletedRef.current = true;
-          } catch (error) {
-            console.error('首次滚动失败:', error);
+        try {
+          if (listRef.current && !initialLayoutCompletedRef.current) {
+            console.log('首次布局完成后滚动到底部');
+            // 使用安全滚动方法而不是直接调用scrollToEnd
+            safeScrollToEnd(false);
+            // 即使有错误，也标记初始布局已完成，避免重复尝试
+            initialLayoutCompletedRef.current = true;
+            console.log('初始滚动过程完成');
           }
+        } catch (error) {
+          console.error('初始滚动执行失败:', error);
+          // 即使出错也标记为已完成，避免重复触发
+          initialLayoutCompletedRef.current = true;
         }
-      }, 3000);
+      }, 3000); // 增加延迟时间到3000ms，确保布局完成
     }
-  }, [messages.length, scrollToEnd, listRef]);
+  }, [safeScrollToEnd, listRef]);
   
   // 优化加载更多处理函数
   const handleLoadMore = useCallback(() => {
@@ -231,9 +278,9 @@ export const useMessageScroll = (
         isLoadingMoreRef.current = false;
       }
     }
-  }, [handleBeforeLoadMore]);
+  }, []);
   
-  // 统一的滚动处理函数，处理消息更新引起的滚动 - 区分首次加载与后续更新
+  // 统一的滚动处理函数，处理消息更新引起的滚动
   const handleMessagesChanged = useCallback(() => {
     // 如果初始布局已完成但消息列表为空，就不进行处理
     if (initialLayoutCompletedRef.current && messages.length === 0) {
@@ -246,37 +293,50 @@ export const useMessageScroll = (
       return;
     }
     
-    console.log('检测到消息更新，准备滚动');
+    // 增加时间间隔控制，减少日志和滚动次数
     const now = Date.now();
+    const timeSinceLastScroll = now - lastScrollEventTime.current;
+    
+    // 降低滚动间隔阈值，使消息流更新时滚动更加及时
+    if (timeSinceLastScroll < 300) { // 300ms的节流间隔
+      return;
+    }
+    
+    console.log('检测到消息更新，准备滚动');
     
     // 当滚动标志为真且距离上次滚动超过阈值时才触发滚动
-    if (shouldScrollToBottom?.current && now - lastScrollEventTime.current > 200) {
+    if (shouldScrollToBottom?.current) {
       lastScrollEventTime.current = now;
       
       // 使用定时器延迟滚动，确保UI更新完成
       setTimeout(() => {
-        if (!isScrollingInProgressRef.current && listRef.current) {
-          try {
-            scrollToEnd(true);
-            console.log('消息更新后滚动到底部完成');
-          } catch (err) {
-            console.error('消息更新后滚动失败:', err);
-          }
+        if (!isScrollingInProgressRef.current) {
+          // 使用安全滚动方法
+          safeScrollToEnd(true);
         }
       }, 100);
     }
-  }, [messages, shouldScrollToBottom, scrollToEnd, isScrollingInProgressRef, listRef]);
+  }, [messages, shouldScrollToBottom, safeScrollToEnd, isScrollingInProgressRef]);
   
   // 监听消息列表变化
+  const messageChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    // 只在组件挂载后且消息列表不为空时触发一次
+    // 防止在流式返回时重复执行初始化逻辑
     if (messages.length > 0 && !initialLayoutCompletedRef.current) {
       console.log('初次加载消息，将在布局完成后处理滚动');
     } else if (initialLayoutCompletedRef.current) {
-      handleMessagesChanged();
+      // 使用防抖处理消息变化，减少频繁触发
+      if (messageChangeTimeoutRef.current) {
+        clearTimeout(messageChangeTimeoutRef.current);
+      }
+      
+      messageChangeTimeoutRef.current = setTimeout(() => {
+        handleMessagesChanged();
+        messageChangeTimeoutRef.current = null;
+      }, 100); // 100ms的防抖延迟
     }
   }, [messages.length, handleMessagesChanged]);
-  
+
   // 允许外部设置预加载阈值
   const setLoadMoreThreshold = useCallback((threshold: number) => {
     if (threshold >= 0 && threshold <= 1) {
@@ -316,12 +376,15 @@ export const useMessageScroll = (
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
+      if (messageChangeTimeoutRef.current) {
+        clearTimeout(messageChangeTimeoutRef.current);
+      }
     };
   }, []);
-  
+
   return {
     isScrolling,
-    scrollToEnd,
+    safeScrollToEnd,
     handleViewableItemsChanged,
     handleScroll,
     handleScrollBeginDrag,

@@ -7153,6 +7153,11 @@ react-native-markdown-display@^7.0.2:
     prop-types "^15.7.2"
     react-native-fit-image "^1.5.5"
 
+react-native-pager-view@^6.7.0:
+  version "6.7.0"
+  resolved "https://registry.npmmirror.com/react-native-pager-view/-/react-native-pager-view-6.7.0.tgz#88f2520e85f07ce55f3f56c57d6637249a215160"
+  integrity sha512-sutxKiMqBuQrEyt4mLaLNzy8taIC7IuYpxfcwQBXfSYBSSpAa0qE9G1FXlP/iXqTSlFgBXyK7BESsl9umOjECQ==
+
 react-native-reanimated@~3.16.1:
   version "3.16.7"
   resolved "https://registry.npmmirror.com/react-native-reanimated/-/react-native-reanimated-3.16.7.tgz#6c7fa516f62c6743c24d955dada00e3c5323d50d"
@@ -7182,6 +7187,13 @@ react-native-screens@~4.4.0:
   dependencies:
     react-freeze "^1.0.0"
     warn-once "^0.1.0"
+
+react-native-tab-view@^4.0.5:
+  version "4.0.5"
+  resolved "https://registry.npmmirror.com/react-native-tab-view/-/react-native-tab-view-4.0.5.tgz#d12ec7dfd260c6acb247a401b3fc4abe6a3d466c"
+  integrity sha512-Xn3TpYo4yvKRC/f4+cOcvsXlitdnSaYkacshckrEI3JiDmFKNFIRVNxtZFggm4MwbJafq2RzuzR6xrgKoxgkTw==
+  dependencies:
+    use-latest-callback "^0.2.1"
 
 react-native-toast-message@^2.2.1:
   version "2.2.1"

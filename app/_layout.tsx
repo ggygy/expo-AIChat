@@ -133,7 +133,36 @@ export default function RootLayout() {
                   animation: 'slide_from_right',
                 }}
               />
+              <Stack.Screen
+              name="explores/toolEditor"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
+            <Stack.Screen
+              name="explores/promptEditor"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
+            <Stack.Screen
+              name="explores/promptEditor/[id]"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
+            <Stack.Screen
+              name="explores/toolEditor/[id]"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
             </Stack>
+
             <StatusBar
               style={colorScheme === 'dark' ? 'light' : 'dark'}
               backgroundColor={colorScheme === 'dark' ? '#000' : '#fff'}

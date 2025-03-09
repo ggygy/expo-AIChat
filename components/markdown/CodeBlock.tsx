@@ -255,7 +255,7 @@ const CodeBlock = ({ literal, language }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 12,
+    marginVertical: 4,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: 'transparent',
@@ -319,15 +319,13 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   scrollView: {
-    maxHeight: 400,
+    flex: 1,
   },
   scrollViewContent: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    paddingTop: 24, // 为滚动指示器留出空间
+    paddingTop: 24,
   },
   codeContainer: {
-    // 不设置最小宽度，避免影响水平滚动
   },
   scrollHintOverlay: {
     position: 'absolute',

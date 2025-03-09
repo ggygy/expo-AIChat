@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Picker } from '@/components/ui/Picker';
 import { ThemedText } from '@/components/ThemedText';
 import { ValueSlider } from '@/components/ui/ValueSlider';
+import { usePromptStore } from '@/store/usePromptStore';
+import { useToolStore } from '@/store/useToolStore';
 import i18n from '@/i18n/i18n';
 
 export interface BotFormData {
@@ -20,6 +22,9 @@ export interface BotFormData {
   streamOutput: boolean;
   chainOfThought: number;
   systemPrompt: string;
+  // 添加新的字段
+  promptTemplateId?: string;
+  enabledToolIds?: string[];
 }
 
 interface BotFormProps {
@@ -50,8 +55,19 @@ export function BotForm({
   const [maxTokens, setMaxTokens] = useState(initialData?.maxTokens || 2000);
   const [streamOutput, setStreamOutput] = useState(initialData?.streamOutput ?? true);
   const [chainOfThought, setChainOfThought] = useState(initialData?.chainOfThought || 0);
+  // 添加新的状态
+  const [promptTemplateId, setPromptTemplateId] = useState(initialData?.promptTemplateId || '');
+  const [enabledToolIds, setEnabledToolIds] = useState<string[]>(initialData?.enabledToolIds || []);
+  
   const [modelItems, setModelItems] = useState<Array<{ label: string; value: string }>>([]);
-
+  
+  // 获取模板和工具
+  const { templates } = usePromptStore();
+  const { tools } = useToolStore();
+  
+  // 转换为选择器格式
+  const promptItems = templates.map(t => ({ label: t.name, value: t.id }));
+  
   const isValid = name.trim() && selectedProviderId && selectedModelId;
 
   const handleSubmit = async () => {
@@ -69,6 +85,9 @@ export function BotForm({
       streamOutput,
       chainOfThought,
       systemPrompt: systemPrompt.trim(),
+      // 新增字段
+      promptTemplateId,
+      enabledToolIds,
     });
   };
 
@@ -77,6 +96,15 @@ export function BotForm({
     setSelectedProviderId(value);
     setSelectedModelId('');
     setModelItems(onProviderChange(value));
+  };
+
+  // 处理工具选择
+  const handleToolToggle = (toolId: string) => {
+    setEnabledToolIds(prev => 
+      prev.includes(toolId)
+        ? prev.filter(id => id !== toolId)
+        : [...prev, toolId]
+    );
   };
 
   // 初始化时设置模型列表
@@ -127,6 +155,37 @@ export function BotForm({
               {i18n.t('bot.noEnabledModels')}
             </ThemedText>
           )}
+        </ThemedView>
+
+        {/* 新增Prompt模板选择 */}
+        <ThemedView style={styles.pickerContainer}>
+          <ThemedText style={styles.label}>提示词模板</ThemedText>
+          <Picker
+            selectedValue={promptTemplateId}
+            onValueChange={setPromptTemplateId}
+            items={promptItems}
+            enabled={!isSubmitting}
+            placeholder="选择提示词模板（可选）"
+          />
+          <ThemedText style={styles.hint}>选择一个预设的提示词模板，或使用自定义系统提示词</ThemedText>
+        </ThemedView>
+
+        {/* 工具选择 */}
+        <ThemedView style={styles.toolsContainer}>
+          <ThemedText style={styles.label}>启用工具</ThemedText>
+          {tools.map(tool => (
+            <View key={tool.id} style={styles.toolItem}>
+              <Switch 
+                value={enabledToolIds.includes(tool.id)}
+                onValueChange={() => handleToolToggle(tool.id)}
+              />
+              <View style={styles.toolInfo}>
+                <ThemedText style={styles.toolName}>{tool.name}</ThemedText>
+                <ThemedText style={styles.toolDescription}>{tool.description}</ThemedText>
+              </View>
+            </View>
+          ))}
+          <ThemedText style={styles.hint}>选择要允许AI使用的工具</ThemedText>
         </ThemedView>
 
         <ValueSlider
@@ -207,7 +266,8 @@ export function BotForm({
           textAlignVertical="top"
           numberOfLines={6}
           style={styles.multilineInput}
-          hint={i18n.t('bot.systemPromptHint')}
+          hint={promptTemplateId ? "已选择提示词模板，此处内容将被忽略" : i18n.t('bot.systemPromptHint')}
+          editable={!promptTemplateId} // 如果选择了模板，则禁用系统提示输入
         />
 
         <Button
@@ -283,5 +343,28 @@ const styles = StyleSheet.create({
     height: 120,
     textAlignVertical: 'top',
     paddingTop: 10,
+  },
+  toolsContainer: {
+    marginBottom: 16,
+  },
+  toolItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eaeaea',
+  },
+  toolInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  toolName: {
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  toolDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });

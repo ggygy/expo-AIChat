@@ -1,16 +1,17 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useBotStore } from '@/store/useBotStore';
 import ChatInput from '@/components/chat/ChatInput';
 import MessageList, { MessageListRef } from '@/components/chat/MessageList';
+import ChatSettings from '@/components/chat/ChatSettings';
 
 // 导入自定义hooks
 import { useChatMessages } from '@/hooks/useChatMessages';
 import { useChatActions } from '@/hooks/useChatActions';
 import { useChatSelection } from '@/hooks/useChatSelection';
-import { useChatNavigation } from '@/hooks/useChatNavigation'; // 导入新的hook
+import { useChatNavigation } from '@/hooks/useChatNavigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function ChatScreen() {
@@ -21,6 +22,30 @@ export default function ChatScreen() {
     const messageListRef = useRef<MessageListRef>(null);
     const getBotInfo = useBotStore(state => state.getBotInfo);
     const botInfo = getBotInfo(id);
+    
+    // 设置状态和动画值
+    const [showSettings, setShowSettings] = useState(false);
+    const settingsAnimation = useRef(new Animated.Value(0)).current;
+    
+    // 设置动画效果
+    useEffect(() => {
+      Animated.timing(settingsAnimation, {
+        toValue: showSettings ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }, [showSettings, settingsAnimation]);
+    
+    // 设置面板动画样式
+    const settingsStyle = {
+      transform: [{
+        translateY: settingsAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-300, 0],
+        })
+      }],
+      opacity: settingsAnimation,
+    };
 
     // 使用消息管理hook
     const {
@@ -62,6 +87,18 @@ export default function ChatScreen() {
         handleDeleteConfirm
     } = useChatSelection(deleteMessages);
 
+    // 优化切换设置的处理函数
+    const toggleSettings = useCallback(() => {
+      setShowSettings(prev => !prev);
+    }, []);
+    
+    // 设置面板点击外部关闭
+    const handleOverlayPress = useCallback(() => {
+      if (showSettings) {
+        setShowSettings(false);
+      }
+    }, [showSettings]);
+
     // 使用导航配置hook，并获取header高度
     const { headerHeight } = useChatNavigation({
         botName: botInfo?.name,
@@ -73,18 +110,25 @@ export default function ChatScreen() {
         handleCancelSelect,
         setShowDeleteDialog,
         manualRefresh,
+        toggleSettings, // 传递优化后的切换函数
+        showSettings,
         headerHeight: Platform.OS === 'ios' ? 60 : 75 // 自定义header高度
     });
 
     // 监控消息状态，不再需要基于消息长度自动滚动
     // 实际的滚动逻辑已经在 MessageList 组件内部处理
     useEffect(() => {
-        // 仅第一次进入页面时记录日志
+        // 仅第一次进入页面时记录日志，并且确保只执行一次
         if (isFirstLoadRef.current && messages.length > 0) {
             console.log('首次加载完成，有消息数量:', messages.length);
             isFirstLoadRef.current = false;
+            
+            // 确保设置滚动到底部标志为true
+            if (setShouldScrollToBottom) {
+                setShouldScrollToBottom(true);
+            }
         }
-    }, [messages.length, isFirstLoadRef]);
+    }, [messages.length, setShouldScrollToBottom]);
 
     // 当发送新消息后，确保滚动到底部
     const handleSendMessageWithScroll = useCallback((text: string) => {
@@ -148,7 +192,6 @@ export default function ChatScreen() {
                 styles.safeArea, 
                 { 
                     backgroundColor,
-                    // 根据headerHeight调整顶部外边距
                     marginTop: Platform.OS === 'ios' ? headerHeight + 14 : headerHeight + 20
                 }
             ]}>
@@ -157,7 +200,6 @@ export default function ChatScreen() {
                       styles.container, 
                       { 
                         backgroundColor,
-                        // 根据是否正在生成消息增加底部边距
                         marginBottom: isGenerating ? 60 : 50
                       }
                     ]}>
@@ -167,11 +209,19 @@ export default function ChatScreen() {
                         />
                     </View>
                 </TouchableWithoutFeedback>
+                
                 {!isSelectMode && (
                     <ChatInput
                         onSendMessage={handleSendMessageWithScroll}
                         onVoiceInput={handleVoiceInput}
                         onFileUpload={handleFileUpload}
+                    />
+                )}
+                
+                {showSettings && (
+                    <ChatSettings 
+                      botId={id} 
+                      onClose={() => setShowSettings(false)}
                     />
                 )}
             </View>
@@ -180,23 +230,20 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
+    // ... existing styles ...
+    settingsOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 1000,
+    },
     safeArea: {
         flex: 1,
     },
     container: {
         flex: 1,
-        // 移除这里的固定marginBottom，因为我们在上面动态设置了
     },
-    messageList: {
-        flex: 1,
-    },
-    headerButtonContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        height: 55
-    },
-    headerButton: {
-        paddingHorizontal: 10,
-        marginHorizontal: 4,
-    },
+    // ... other existing styles ...
 });

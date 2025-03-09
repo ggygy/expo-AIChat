@@ -22,6 +22,9 @@ export interface BotConfig {
   lastMessagePreview?: string;
   lastMessageAt?: number;
   messagesCount?: number;
+  // 新增prompt和tools配置
+  promptTemplateId?: string;
+  enabledToolIds?: string[];
 }
 
 interface BotStore {
@@ -53,6 +56,9 @@ export const useBotStore = create<BotStore>()(
             maxTokens: bot.maxTokens,
             streamOutput: bot.streamOutput ?? true,
             chainOfThought: bot.chainOfThought ?? 0,
+            // 新增默认值
+            promptTemplateId: bot.promptTemplateId,
+            enabledToolIds: bot.enabledToolIds || [],
           }
         ]
       })),

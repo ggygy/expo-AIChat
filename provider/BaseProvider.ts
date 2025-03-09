@@ -2,6 +2,7 @@ import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messag
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ModelProviderId } from '@/constants/ModelProviders';
 import { IterableReadableStream } from '@langchain/core/dist/utils/stream';
+import { Tool } from 'langchain/tools';
 
 export interface ModelConfig {
   vendor: ModelProviderId;
@@ -13,6 +14,7 @@ export interface ModelConfig {
   topP?: number;
   streamOutput?: boolean;
   systemPrompt?: string;
+  tools?: Tool[]; // 添加 tools 属性
 }
 
 export interface TestModelResult {

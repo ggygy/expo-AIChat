@@ -1,30 +1,47 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { ContentType, Message, MessageType } from '@/constants/chat';
+import { Message, ContentType } from '@/constants/chat';
 import { useBotStore } from '@/store/useBotStore';
 import { useProviderStore } from '@/store/useProviderStore';
-import { messageDb } from '@/database';
+import { useLangChainTools } from './useLangChainTools';
+import { useMessageProcessor } from './chat/useMessageProcessor';
+import { useMessagePersistence } from './chat';
+import { useStreamProcessor } from './chat';
 import { ProviderFactory } from '@/provider/ProviderFactory';
 import { ModelProviderId } from '@/constants/ModelProviders';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import i18n from '@/i18n/i18n';
-import { processChunk, enhanceSystemPrompt } from '@/utils/chunkProcessor';
+import { messageDb } from '@/database';
 
 type MessageUpdateCallback = (messages: Message[]) => void;
-// 定义消息状态的类型以确保类型安全
-type MessageStatus = 'sending' | 'streaming' | 'sent' | 'error';
 
 export function useAIChat(botId: string) {
+  // 主要状态
   const [isGenerating, setIsGenerating] = useState(false);
-  // 使用ref来跟踪生成状态，确保异步操作可以访问到最新的状态值
   const isGeneratingRef = useRef(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
+  // 外部 Store
   const getBotInfo = useBotStore(state => state.getBotInfo);
   const { providers } = useProviderStore();
   
-  // 使用ref来控制更新频率
-  const lastUpdateTimeRef = useRef<number>(0);
-  const pendingUpdateRef = useRef<{messages: Message[], callback: MessageUpdateCallback} | null>(null);
-  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // 使用新的 LangChain 工具
+  const { prepareSystemPrompt, prepareLangChainMessages, loadEnabledTools } = useLangChainTools(botId);
+  
+  // 使用拆分后的模块
+  const { 
+    scheduleUiUpdate, 
+    updateIntervalRef, 
+    clearUpdateInterval 
+  } = useMessageProcessor();
+  
+  const {
+    persistMessages,
+    updateMessageContent,
+    saveErrorMessage
+  } = useMessagePersistence(botId);
+  
+  const {
+    handleStreamResponse,
+    isStoppedManuallyRef
+  } = useStreamProcessor(botId, scheduleUiUpdate);
   
   // 更新 isGenerating 状态时，同时更新 ref
   useEffect(() => {
@@ -37,51 +54,19 @@ export function useAIChat(botId: string) {
       if (abortController) {
         abortController.abort();
       }
-      
-      // 清理任何剩余的定时器
-      if (updateIntervalRef.current) {
-        clearInterval(updateIntervalRef.current);
-        updateIntervalRef.current = null;
-      }
+      clearUpdateInterval();
     };
-  }, [abortController]);
-
-  // 使用节流方式更新UI，确保UI保持响应
-  const scheduleUiUpdate = useCallback((messages: Message[], callback: MessageUpdateCallback) => {
-    const now = Date.now();
-    // 存储最新的消息
-    pendingUpdateRef.current = { messages, callback };
-    
-    // 如果没有定时器在运行，则创建一个
-    if (!updateIntervalRef.current) {
-      updateIntervalRef.current = setInterval(() => {
-        // 如果有待更新的消息，则执行更新
-        if (pendingUpdateRef.current) {
-          const { messages, callback } = pendingUpdateRef.current;
-          callback(messages);
-          lastUpdateTimeRef.current = Date.now();
-          pendingUpdateRef.current = null;
-        } else {
-          // 如果没有待更新的消息，清除定时器
-          if (updateIntervalRef.current) {
-            clearInterval(updateIntervalRef.current);
-            updateIntervalRef.current = null;
-          }
-        }
-      }, 80); // 减少更新间隔时间，确保流式内容能够更快显示
-    }
-    
-    // 降低强制更新的间隔，让内容显示更流畅
-    if (now - lastUpdateTimeRef.current > 150) {
-      callback(messages);
-      lastUpdateTimeRef.current = now;
-      pendingUpdateRef.current = null;
-    }
-  }, []);
+  }, [abortController, clearUpdateInterval]);
 
   const sendMessage = useCallback(
     async (userMessage: Message, onUpdate: MessageUpdateCallback) => {
       try {
+        // 确保不使用外部持久化逻辑，直接在这里处理
+        console.log('开始发送消息流程，用户消息:', userMessage);
+        
+        // 在开始新对话前重置手动停止标记
+        isStoppedManuallyRef.current = false;
+        
         const botInfo = getBotInfo(botId);
         if (!botInfo) {
           throw new Error('Bot configuration not found');
@@ -100,38 +85,36 @@ export function useAIChat(botId: string) {
           id: userMessageId
         };
 
-        // 准备 AI 助手的回复消息 - 指定 markdown 类型并初始化思考内容
+        // 准备 AI 助手的回复消息
         const assistantMessageId = `assistant_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const assistantMessage: Message = {
           id: assistantMessageId,
           role: 'assistant',
           content: '',
-          thinkingContent: '', // 初始化思考内容
-          isThinkingExpanded: true, // 默认展开思考内容
+          thinkingContent: '',
+          isThinkingExpanded: true,
           timestamp: Date.now(),
-          contentType: 'markdown', // 将内容类型设置为 markdown
-          status: 'streaming' as MessageStatus
+          contentType: 'markdown' as ContentType,
+          status: 'streaming' as any
         };
 
+        // 直接保存用户和助手消息 - 确保异步操作完成
+        console.log('直接保存用户消息到数据库');
         try {
-          // 保存用户消息到数据库 - 确保先保存用户消息
-          const userSaveResult = await messageDb.addMessage(botId, userMsg);
-          if (!userSaveResult.success && !userSaveResult.skipped) {
-            console.error('保存用户消息失败:', userSaveResult.error);
-          }
+          await messageDb.addMessage(botId, userMsg);
+          console.log('用户消息成功保存到数据库，ID:', userMsg.id);
           
-          // 保存助手消息到数据库
-          const assistantSaveResult = await messageDb.addMessage(botId, assistantMessage);
-          if (!assistantSaveResult.success && !assistantSaveResult.skipped) {
-            console.error('保存助手消息失败:', assistantSaveResult.error);
-          }
+          console.log('直接保存助手消息到数据库');
+          await messageDb.addMessage(botId, assistantMessage);
+          console.log('助手消息成功保存到数据库，ID:', assistantMessage.id);
         } catch (dbError) {
-          console.error('保存消息到数据库时出错:', dbError);
-          // 即使数据库保存失败，我们仍然继续处理对话
+          console.error('保存消息到数据库失败:', dbError);
+          // 继续执行对话流程
         }
         
-        // 更新消息列表 - 确保用户消息在前，助手消息在后
-        onUpdate([userMsg, assistantMessage]);
+        // 立即更新UI，确保消息显示
+        console.log('立即更新UI显示消息对');
+        onUpdate([userMsg, assistantMessage]); 
 
         // 创建中止控制器
         const controller = new AbortController();
@@ -139,56 +122,29 @@ export function useAIChat(botId: string) {
         
         // 标记为正在生成
         setIsGenerating(true);
-        isGeneratingRef.current = true; // 直接设置 ref 确保立即生效
+        isGeneratingRef.current = true;
 
-        // 获取聊天历史
-        let chatHistory = await messageDb.getMessages(botId, 50, 0);
+        // 获取聊天历史和处理上下文 (注意可能需要限制历史长度)
+        const chatHistory = await messageDb.getMessages(botId, 30, 0);
+        console.log(`获取到聊天历史 ${chatHistory.length} 条消息`);
         
-        // 应用 maxContextLength 限制 - 仅保留最近的N轮对话
-        if (botInfo.maxContextLength && botInfo.maxContextLength > 0) {
-          // 一轮对话通常包含一条用户消息和一条助手回复
-          // 因此需要计算需要保留的消息数量
-          const maxMessages = botInfo.maxContextLength * 2;
-          if (chatHistory.length > maxMessages) {
-            console.log(`应用上下文长度限制: ${botInfo.maxContextLength}轮，保留最近的${maxMessages}条消息`);
-            chatHistory = chatHistory.slice(-maxMessages);
-          }
-        }
+        // 应用 maxContextLength 限制
+        const finalHistory = botInfo.maxContextLength && botInfo.maxContextLength > 0
+          ? chatHistory.slice(-botInfo.maxContextLength * 2)
+          : chatHistory;
         
-        // 确保消息按时间顺序排序
-        chatHistory.sort((a, b) => a.timestamp - b.timestamp);
+        // 准备系统提示词和LangChain消息
+        const finalSystemPrompt = await prepareSystemPrompt(userMsg);
+        const langchainMessages = prepareLangChainMessages(finalHistory, finalSystemPrompt);
         
-        // 转换消息为 Langchain 消息格式
-        const langchainMessages = chatHistory.map(msg => {
-          switch (msg.role) {
-            case 'user':
-              return new HumanMessage({ content: msg.content });
-            case 'assistant':
-              return new AIMessage({ content: msg.content });
-            case 'system':
-              return new SystemMessage({ content: msg.content });
-            default:
-              return new HumanMessage({ content: msg.content });
-          }
-        });
-        
-        // 考虑系统提示
-        if (botInfo.systemPrompt && !langchainMessages.some(msg => msg instanceof SystemMessage)) {
-          const systemMessage = new SystemMessage({ content: botInfo.systemPrompt });
-          langchainMessages.unshift(systemMessage);
-        }
+        // 加载启用的工具
+        const enabledTools = loadEnabledTools();
 
         // 创建模型提供商实例
         const modelProvider = ProviderFactory.createProvider(botInfo.providerId as ModelProviderId);
         if (!modelProvider) {
           throw new Error(`Unsupported provider: ${botInfo.providerId}`);
         }
-
-        // 使用 enhanceSystemPrompt 工具函数增强系统提示
-        const finalSystemPrompt = enhanceSystemPrompt(
-          botInfo.systemPrompt || '', 
-          botInfo.chainOfThought || 0
-        );
 
         // 初始化模型
         modelProvider.initialize({
@@ -200,178 +156,36 @@ export function useAIChat(botId: string) {
           maxTokens: botInfo.enableMaxTokens ? botInfo.maxTokens : undefined,
           topP: botInfo.topP,
           streamOutput: botInfo.streamOutput,
-          systemPrompt: finalSystemPrompt // 使用增强后的系统提示
+          systemPrompt: finalSystemPrompt,
+          tools: enabledTools.length ? enabledTools : undefined,
         });
 
-        // 如果支持流式输出
+        // 如果支持流式输出，处理流式响应
         if (botInfo.streamOutput) {
-          let content = '';
-          let thinkingContent = ''; // 单独存储思考内容
-          let lastSaveLength = 0;
-          let lastThinkingLength = 0;
-          let totalTokens = 0;
-          let promptTokens = 0;
-          let completionTokens = 0;
-          
-          // 数据库更新的计时器
-          let dbUpdateTimeout: NodeJS.Timeout | null = null;
-          
-          // 创建一个函数来处理数据库更新，避免频繁IO操作
-          const scheduleDbUpdate = (content: string, thinkingContent: string, status: MessageStatus, tokenInfo?: any) => {
-            if (dbUpdateTimeout) {
-              clearTimeout(dbUpdateTimeout);
-            }
-            
-            dbUpdateTimeout = setTimeout(() => {
-              messageDb.updateMessageWithThinking(
-                assistantMessage.id, 
-                content,
-                thinkingContent,
-                status, 
-                'markdown',
-                tokenInfo
-              ).catch(error => {
-                console.error('保存内容到数据库失败:', error);
-              });
-              dbUpdateTimeout = null;
-            }, 200); // 延迟200ms，减少数据库写入频率
-          };
-          
-          const stream = await modelProvider.stream(langchainMessages);
-          
+          console.log('开始流式生成响应...');
           try {
-            for await (const chunk of stream) {
-              // 检查是否已中止生成
-              if (!isGeneratingRef.current) {
-                console.log('流式生成被中止');
-                break;
-              }
-              
-              // 使用修改后的 processChunk 处理 chunk，同时更新两种内容
-              const processedChunk = processChunk(
-                chunk, 
-                content, 
-                thinkingContent,
-                {
-                  total_tokens: totalTokens,
-                  prompt_tokens: promptTokens,
-                  completion_tokens: completionTokens
-                }
-              );
-              
-              // 提取处理后的内容
-              content = processedChunk.content || content;
-              thinkingContent = processedChunk.thinkingContent || thinkingContent;
-              
-              // 更新 token 计数
-              if (processedChunk.tokenUsage) {
-                totalTokens = processedChunk.tokenUsage.total_tokens || totalTokens;
-                promptTokens = processedChunk.tokenUsage.prompt_tokens || promptTokens;
-                completionTokens = processedChunk.tokenUsage.completion_tokens || completionTokens;
-              }
-              
-              if (content !== '' || thinkingContent !== '') {
-                // 更新助手消息，同时包含两种内容
-                const updatedAssistantMessage = {
-                  ...assistantMessage,
-                  content: content,
-                  thinkingContent: thinkingContent,
-                  contentType: 'markdown' as ContentType,
-                  status: 'streaming' as MessageStatus, // 确保状态正确
-                  tokenUsage: totalTokens > 0 ? {
-                    total_tokens: totalTokens,
-                    prompt_tokens: promptTokens,
-                    completion_tokens: completionTokens
-                  } : undefined
-                };
-                
-                // 使用节流更新UI，确保不会阻塞
-                scheduleUiUpdate([userMsg, updatedAssistantMessage], onUpdate);
-                
-                // 定期保存内容到数据库
-                // 增加content变化的阈值，减少数据库更新频率
-                const contentChanged = content.length - lastSaveLength > 200;
-                const thinkingChanged = thinkingContent.length - lastThinkingLength > 200;
-                
-                if (contentChanged || thinkingChanged) {
-                  // 记录当前长度，避免重复保存相同内容
-                  lastSaveLength = content.length;
-                  lastThinkingLength = thinkingContent.length;
-                  
-                  // 使用定时器延迟数据库更新，避免频繁IO
-                  const tokenInfo = totalTokens > 0 ? {
-                    total_tokens: totalTokens,
-                    prompt_tokens: promptTokens,
-                    completion_tokens: completionTokens
-                  } : undefined;
-                  
-                  // 计划数据库更新，不阻塞UI
-                  scheduleDbUpdate(content, thinkingContent, 'streaming', tokenInfo);
-                }
-              }
-              
-              // 添加一个延时，让UI线程有机会执行其他操作
-              // 更频繁地执行延时，但延时时间更短，使动画更流畅
-              if (content.length % 30 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 5));
-              }
-            }
-          } catch (error) {
-            console.error('流式生成错误:', error);
-            if (isGeneratingRef.current) { // 只有在未主动中止时才视为错误
-              throw error;
-            }
-          }
-
-          // 取消任何待处理的数据库更新
-          if (dbUpdateTimeout) {
-            clearTimeout(dbUpdateTimeout);
-            dbUpdateTimeout = null;
-          }
-
-          // 构建token使用信息对象
-          const tokenInfo = totalTokens > 0 ? {
-            total_tokens: totalTokens,
-            prompt_tokens: promptTokens,
-            completion_tokens: completionTokens
-          } : undefined;
-          
-          try {
-            // 保存最终消息，包括思考内容
-            console.log(`保存完整内容: 内容=${content.length}字符, 思考=${thinkingContent.length}字符, tokens=${totalTokens}`);
-            await messageDb.updateMessageWithThinking(
-              assistantMessage.id, 
-              content,
-              thinkingContent, 
-              'sent', 
-              'markdown',
-              tokenInfo
+            const stream = await modelProvider.stream(langchainMessages);
+            const finalAssistantMessage = await handleStreamResponse(
+              stream, 
+              userMsg, 
+              assistantMessage, 
+              isGeneratingRef,
+              onUpdate
             );
-          } catch (updateError) {
-            console.error('更新消息内容失败:', updateError);
-            // 即使更新失败，我们仍然继续更新UI
-          }
-          
-          // 更新最终消息，包含两种内容
-          const finalAssistantMessage: Message = {
-            ...assistantMessage,
-            content: content,
-            thinkingContent: thinkingContent,
-            contentType: 'markdown',
-            status: 'sent' as MessageStatus,
-            tokenUsage: tokenInfo
-          };
-          
-          // 最后一次更新 UI
-          onUpdate([userMessage, finalAssistantMessage]);
-          
-          // 清理任何剩余的定时器
-          if (updateIntervalRef.current) {
-            clearInterval(updateIntervalRef.current);
-            updateIntervalRef.current = null;
+            console.log('流式响应生成完成:', finalAssistantMessage.id);
+            
+            // 额外确保最终消息也被传递给UI，增加延迟确保UI更新
+            setTimeout(() => {
+              console.log('Final update to UI with completed message');
+              onUpdate([userMsg, finalAssistantMessage]);
+            }, 200);
+          } catch (streamError) {
+            console.error('流式生成错误:', streamError);
+            throw streamError;
           }
         } else {
-          // 非流式输出
+          // 非流式输出处理
+          console.log('开始非流式生成响应...');
           const response = await modelProvider.chat(langchainMessages);
           console.log(`获取到非流式响应: ${response.length} 字符`);
 
@@ -381,72 +195,90 @@ export function useAIChat(botId: string) {
               assistantMessage.id, 
               response, 
               'sent', 
-              'markdown' // 传递内容类型
+              'markdown'
             );
-          } catch (updateError) {
-            console.error('更新非流式消息内容失败:', updateError);
-            // 即使更新失败，我们仍然继续更新UI
+            console.log('非流式响应已保存到数据库');
+          } catch (err) {
+            console.error('保存非流式响应失败:', err);
           }
           
           // 更新助手消息
           const updatedAssistantMessage: Message = {
             ...assistantMessage,
             content: response,
-            contentType: 'markdown', // 确保类型不变
-            status: 'sent' as MessageStatus
+            contentType: 'markdown' as ContentType,
+            status: 'sent'
           };
           
-          // 更新 UI
-          onUpdate([userMessage, updatedAssistantMessage]);
+          // 更新 UI - 确保使用正确的用户消息
+          console.log('更新UI显示非流式响应');
+          onUpdate([userMsg, updatedAssistantMessage]);
         }
+        
+        return true;
       } catch (error) {
         console.error('AI chat error:', error);
         
-        // 创建错误消息
-        const errorMessage: Message = {
-          id: `error_${Date.now()}`,
-          role: 'assistant',
-          content: i18n.t('chat.errorResponse'), // 使用本地化文本
-          timestamp: Date.now(),
-          contentType: 'text',
-          status: 'error' as MessageStatus,
-          error: error instanceof Error 
-            ? `${error.message} ${error.stack ? `\n${error.stack}` : ''}` 
-            : i18n.t('common.unknownError')
-        };
-        
-        // 保存错误消息
-        await messageDb.addMessage(botId, errorMessage);
+        // 创建并保存错误消息
+        const errorMessage = await saveErrorMessage(error, userMessage);
         
         // 更新 UI
         onUpdate([userMessage, errorMessage]);
         
-        throw error;
+        return false;
       } finally {
         // 重置生成状态和中止控制器
         setIsGenerating(false);
         isGeneratingRef.current = false;
+        isStoppedManuallyRef.current = false;
         setAbortController(null);
-        
-        // 清理定时器
-        if (updateIntervalRef.current) {
-          clearInterval(updateIntervalRef.current);
-          updateIntervalRef.current = null;
-        }
+        clearUpdateInterval();
       }
     },
-    [botId, providers, getBotInfo, scheduleUiUpdate]
+    [
+      botId, 
+      providers, 
+      getBotInfo, 
+      updateMessageContent, 
+      saveErrorMessage,
+      handleStreamResponse, 
+      prepareSystemPrompt, 
+      prepareLangChainMessages, 
+      loadEnabledTools,
+      isStoppedManuallyRef,
+      clearUpdateInterval
+    ]
   );
 
   // 封装设置生成状态的函数，同时更新ref
   const setGeneratingState = useCallback((state: boolean) => {
+    // 如果当前正在生成，并且要设置为非生成状态（即停止生成）
+    if (isGeneratingRef.current && !state) {
+      console.log('检测到生成被手动停止，将保存当前已生成内容');
+      isStoppedManuallyRef.current = true;
+    }
+    
     setIsGenerating(state);
     isGeneratingRef.current = state;
-  }, []);
+  }, [isStoppedManuallyRef]);
+
+  // 增加一个函数用于停止生成，确保在停止时保存内容
+  const stopGeneration = useCallback(() => {
+    console.log('用户请求停止生成');
+    isStoppedManuallyRef.current = true;
+    
+    if (abortController) {
+      abortController.abort();
+    }
+    
+    setIsGenerating(false);
+    isGeneratingRef.current = false;
+  }, [abortController, isStoppedManuallyRef]);
 
   return {
     sendMessage,
     isGenerating,
     setIsGenerating: setGeneratingState,
+    stopGeneration,
   };
 }

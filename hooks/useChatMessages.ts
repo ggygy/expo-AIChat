@@ -13,7 +13,7 @@ export function useChatMessages(chatId: string) {
   const shouldScrollToBottomRef = useRef(true);
   const lastLoadTimestampRef = useRef(0);
   const offsetRef = useRef(0);
-  const batchSizeRef = useRef(20); // 每次加载的消息数量
+  const batchSizeRef = useRef(10); // 每次加载的消息数量
   const isPreloadingRef = useRef(false); // 是否正在预加载
   
   // 初始加载消息

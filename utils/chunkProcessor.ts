@@ -1,5 +1,8 @@
 import { MessageType } from '@/constants/chat';
 
+// 导入必要的类型
+import { Message } from '@/constants/chat';
+
 // 定义 token 使用信息类型
 export interface TokenUsage {
   total_tokens?: number;
@@ -7,33 +10,51 @@ export interface TokenUsage {
   completion_tokens?: number;
 }
 
-// 修改处理 chunk 后的结果类型，添加思考内容
+// 定义正确的返回类型
 export interface ProcessedChunk {
   content: string;
-  thinkingContent?: string; // 新增：思考内容
-  messageType: MessageType;
-  tokenUsage?: TokenUsage;
+  thinkingContent: string;
 }
 
 /**
- * 处理 AI 模型返回的流式响应 chunk
- * @param chunk 从 AI 模型返回的原始 chunk 数据
- * @param currentContent 当前消息内容
- * @param currentThinking 当前思考内容
- * @param currentTokens 当前的 token 计数器
- * @returns 处理后的 chunk 内容、思考内容和更新后的 token 信息
+ * 处理API返回的数据块，分离正常内容和思考内容
+ * @param chunk 从API接收到的数据块
+ * @param existingContent 当前已累积的内容
+ * @param existingThinkingContent 当前已累积的思考内容
+ * @param tokenUsage token使用情况
+ * @returns 处理后的内容对象，包含普通内容和思考内容
  */
 export function processChunk(
   chunk: any, 
-  currentContent: string = '',
-  currentThinking: string = '',
-  currentTokens: TokenUsage = {}
+  existingContent: string, 
+  existingThinkingContent: string,
+  tokenUsage?: { 
+    total_tokens?: number, 
+    prompt_tokens?: number, 
+    completion_tokens?: number 
+  }
 ): ProcessedChunk {
+  // 初始化内容，使用现有内容
+  let content = existingContent;
+  let thinkingContent = existingThinkingContent;
+  
+  // 打印接收到的chunk结构，便于调试
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log('收到chunk:', JSON.stringify(chunk, null, 2).substring(0, 200) + '...');
+    } catch (e) {
+      console.log('收到非JSON格式chunk');
+    }
+  }
+
   let chunkContent: string | undefined;
+  let chunkThinking: string | undefined;
   let chunkType: MessageType = 'normal';
-  let totalTokens = currentTokens.total_tokens || 0;
-  let promptTokens = currentTokens.prompt_tokens || 0;
-  let completionTokens = currentTokens.completion_tokens || 0;
+  
+  // 提取令牌使用信息
+  let totalTokens = tokenUsage?.total_tokens || 0;
+  let promptTokens = tokenUsage?.prompt_tokens || 0;
+  let completionTokens = tokenUsage?.completion_tokens || 0;
   
   // 尝试从chunk中提取tokens信息
   if (chunk.response_metadata?.tokenUsage) {
@@ -41,7 +62,6 @@ export function processChunk(
     if (total_tokens) totalTokens = total_tokens;
     if (prompt_tokens) promptTokens = prompt_tokens;
     if (completion_tokens) completionTokens = completion_tokens;
-    console.log(`Token使用情况更新: 总计=${total_tokens}, 提示=${prompt_tokens}, 完成=${completion_tokens}`);
   }
   
   // 处理常规内容
@@ -49,56 +69,45 @@ export function processChunk(
     chunkContent = chunk.content;
   } 
   
-  // 处理思考过程 - 检查additional_kwargs.reasoning_content
-  let thinkingContent = '';
+  // 处理思考过程 - 检查所有可能的思考内容字段
+  // 1. additional_kwargs.reasoning_content
   if (chunk.additional_kwargs?.reasoning_content) {
-    // 发现推理内容，设置为思考类型
     chunkType = 'thinking';
-    thinkingContent = chunk.additional_kwargs.reasoning_content;
-    console.log('检测到推理内容:', thinkingContent.substring(0, 20) + '...');
+    chunkThinking = chunk.additional_kwargs.reasoning_content;
+    console.log('检测到推理内容(reasoning_content):', chunkThinking?.substring(0, 20) + '...');
   } 
+  // 2. additional_kwargs.thinking
+  else if (chunk.additional_kwargs?.thinking) {
+    chunkType = 'thinking';
+    chunkThinking = chunk.additional_kwargs.thinking;
+    console.log('检测到推理内容(thinking):', chunkThinking?.substring(0, 20) + '...');
+  }
+  // 3. reasoning 字段
+  else if (chunk.reasoning || (chunk.content && chunk.content.reasoning)) {
+    chunkType = 'thinking';
+    chunkThinking = chunk.reasoning || chunk.content.reasoning;
+    console.log('检测到推理内容(reasoning):', chunkThinking?.substring(0, 20) + '...');
+  }
   
   // 处理其他格式的消息数据
-  if (!chunkContent && !thinkingContent && chunk.content && typeof chunk.content === 'object') {
+  if (!chunkContent && !chunkThinking && chunk.content && typeof chunk.content === 'object') {
     try {
-      // 移除可能导致类型警告的字段
-      const cleanChunk = { ...chunk };
-      if (cleanChunk.hasOwnProperty('total_tokens')) {
-        totalTokens = Number(cleanChunk.total_tokens) || 0;
-        delete cleanChunk.total_tokens;
-      }
-      if (cleanChunk.hasOwnProperty('completion_tokens')) {
-        completionTokens = Number(cleanChunk.completion_tokens) || 0;
-        delete cleanChunk.completion_tokens;
-      }
-      if (cleanChunk.hasOwnProperty('prompt_tokens')) {
-        promptTokens = Number(cleanChunk.prompt_tokens) || 0;
-        delete cleanChunk.prompt_tokens;
-      }
-      
-      // 检查特殊格式的消息块
-      if (typeof cleanChunk.content === 'object' && cleanChunk.content !== null) {
-        // 处理 {"content":"内容", "type":"text"} 和 {"content":"内容", "type":"thinking"} 格式
-        if ('content' in cleanChunk.content && 'type' in cleanChunk.content) {
-          const contentType = cleanChunk.content.type;
-          const contentText = String(cleanChunk.content.content || '');
-          
-          if (contentType === 'thinking') {
-            thinkingContent = contentText;
-          } else {
-            chunkContent = contentText;
-          }
-        } else if ('text' in cleanChunk.content) {
-          chunkContent = String(cleanChunk.content.text);
-        } else if ('reasoning' in cleanChunk.content) {
-          // 也处理直接包含reasoning字段的情况
-          thinkingContent = String(cleanChunk.content.reasoning);
+      // 处理对象格式内容
+      if ('content' in chunk.content && 'type' in chunk.content) {
+        const contentType = chunk.content.type;
+        const contentText = String(chunk.content.content || '');
+        
+        if (contentType === 'thinking') {
+          chunkThinking = contentText;
+          console.log('检测到思考类型内容:', contentText.substring(0, 20) + '...');
         } else {
-          // 降级为JSON字符串
-          chunkContent = JSON.stringify(cleanChunk.content);
+          chunkContent = contentText;
         }
-      } else {
-        chunkContent = String(cleanChunk.content);
+      } else if ('text' in chunk.content) {
+        chunkContent = String(chunk.content.text);
+      } else if ('reasoning' in chunk.content) {
+        chunkThinking = String(chunk.content.reasoning);
+        console.log('检测到content.reasoning字段:', chunkThinking.substring(0, 20) + '...');
       }
     } catch (e) {
       console.warn('处理流式响应块失败:', e);
@@ -107,18 +116,45 @@ export function processChunk(
   }
   
   // 更新内容，将新块追加到现有内容
-  const updatedContent = chunkContent ? currentContent + chunkContent : currentContent;
-  const updatedThinking = thinkingContent ? currentThinking + thinkingContent : currentThinking;
+  if (chunkContent) {
+    content = content + chunkContent;
+  }
+  
+  if (chunkThinking) {
+    thinkingContent = thinkingContent + chunkThinking;
+  }
+  
+  // 特殊处理: 如果内容包含思考过程的标记，尝试分离
+  if (content && !thinkingContent) {
+    const thinkingPatterns = [
+      { start: '思考：', end: '\n回答：' },
+      { start: '思考:', end: '\n回答:' },
+      { start: 'Thinking:', end: '\nAnswer:' },
+      { start: '# 思考过程', end: '\n# 回答' },
+      { start: 'Reasoning:', end: '\nResponse:' }
+    ];
+    
+    for (const pattern of thinkingPatterns) {
+      const startIdx = content.indexOf(pattern.start);
+      const endIdx = content.indexOf(pattern.end);
+      
+      if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+        thinkingContent = content.substring(startIdx, endIdx + pattern.end.length);
+        content = content.substring(0, startIdx) + content.substring(endIdx + pattern.end.length);
+        console.log('从内容中提取思考过程:', thinkingContent.substring(0, 20) + '...');
+        break;
+      }
+    }
+  }
+  
+  // 记录最终提取的内容
+  if (thinkingContent && thinkingContent !== existingThinkingContent) {
+    console.log('更新思考内容，当前长度:', thinkingContent.length);
+  }
   
   return {
-    content: updatedContent,
-    thinkingContent: updatedThinking || undefined,
-    messageType: 'normal', // 总是返回normal类型，思考内容由thinkingContent字段表示
-    tokenUsage: {
-      total_tokens: totalTokens,
-      prompt_tokens: promptTokens,
-      completion_tokens: completionTokens
-    }
+    content,
+    thinkingContent,
   };
 }
 

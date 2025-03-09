@@ -27,6 +27,7 @@ interface MessageCardProps {
     isStreaming?: boolean;
 }
 
+// 使用memo并增加比较函数来优化渲染
 const MessageCard: FC<MessageCardProps> = ({
     message,
     onRetry,
@@ -148,19 +149,19 @@ const MessageCard: FC<MessageCardProps> = ({
                             ) : (
                                 /* AI助手消息 */
                                 <View style={styles.contentContainer}>
-                                    {/* 思考内容（如果存在） */}
-                                    {message.thinkingContent && (
+                                    {/* 思考内容检查 - 确保思考内容不为空且非undefined */}
+                                    {message.thinkingContent && message.thinkingContent.trim() !== '' && (
                                         <ThinkingContent
                                             thinkingContent={message.thinkingContent}
                                             thinkingMarkdownStyles={thinkingMarkdownStyles}
-                                            thinkingBgColor={colors.thinkingBg}
+                                            thinkingBgColor={colors.thinkingBg || '#f5f5f5'}
                                             thinkingTextColor={colors.thinkingText || '#666'}
-                                            initialIsExpanded={message.isThinkingExpanded}
+                                            initialIsExpanded={message.isThinkingExpanded !== false}
                                         />
                                     )}
                                     
-                                    {/* 正常回答内容的分隔线 */}
-                                    {message.content && message.thinkingContent && (
+                                    {/* 正常回答内容的分隔线 - 仅当两种内容都存在时显示 */}
+                                    {message.content && message.thinkingContent && message.thinkingContent.trim() !== '' && (
                                         <View style={styles.contentDivider} />
                                     )}
                                     
@@ -219,7 +220,7 @@ const MessageCard: FC<MessageCardProps> = ({
             />
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     messageCardWrapper: {
@@ -357,4 +358,42 @@ const styles = StyleSheet.create({
     },
 });
 
-export default memo(MessageCard);
+export default memo(MessageCard, (prevProps, nextProps) => {
+  // 优化比较函数 - 更精细的控制重渲染条件
+  
+  // 流式消息需要更频繁更新，而非流式消息可以少更新
+  const isStreaming = nextProps.isStreaming;
+  
+  // 判断内容变化
+  const isSameContent = prevProps.message.content === nextProps.message.content;
+  const isSameThinking = prevProps.message.thinkingContent === nextProps.message.thinkingContent;
+  
+  // 对于流式消息，使用更低的阈值，确保更频繁更新
+  const contentThreshold = isStreaming ? 25 : 50;
+  
+  const contentSimilar = !isSameContent && 
+    prevProps.message.content.length > 0 && 
+    nextProps.message.content.length > 0 && 
+    Math.abs(prevProps.message.content.length - nextProps.message.content.length) < contentThreshold;
+  
+  const thinkingSimilar = !isSameThinking && Math.abs((prevProps.message.thinkingContent?.length || 0) - 
+      (nextProps.message.thinkingContent?.length || 0)) < contentThreshold;
+  
+  // 其他状态比较
+  const isSameStatus = prevProps.message.status === nextProps.message.status;
+  const isSameSelection = prevProps.isSelected === nextProps.isSelected && prevProps.selectable === nextProps.selectable;
+  const isSameStreaming = prevProps.isStreaming === nextProps.isStreaming;
+  
+  // 流式更新消息时，需要更频繁地重新渲染
+  if (isStreaming) {
+    // 流式消息下，仅当内容几乎相同(差异少于25字符)且状态一致时才跳过更新
+    return (isSameContent || contentSimilar) && 
+           (isSameThinking || thinkingSimilar) && 
+           isSameStatus && 
+           isSameSelection;
+  }
+  
+  // 非流式消息，采用更严格的优化策略
+  return (isSameContent || contentSimilar) && (isSameThinking || thinkingSimilar) && 
+         isSameStatus && isSameSelection && isSameStreaming;
+});
