@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
-import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform, Animated } from 'react-native';
+import { View, StyleSheet, TouchableWithoutFeedback, Keyboard, Platform, Animated, KeyboardAvoidingView } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useBotStore } from '@/store/useBotStore';
@@ -52,7 +52,7 @@ export default function ChatScreen() {
         messages,
         setMessages,
         isLoading,
-        handleLoadMore,
+        onLoadMore,
         totalMessages,
         setTotalMessages,
         deleteMessages,
@@ -112,7 +112,7 @@ export default function ChatScreen() {
         manualRefresh,
         toggleSettings, // 传递优化后的切换函数
         showSettings,
-        headerHeight: Platform.OS === 'ios' ? 60 : 75 // 自定义header高度
+        headerHeight: Platform.OS === 'ios' ? 58 : 70
     });
 
     // 监控消息状态，不再需要基于消息长度自动滚动
@@ -152,7 +152,7 @@ export default function ChatScreen() {
     const messageListProps = useMemo(() => ({
         messages,
         onRetry: handleRetry,
-        onLoadMore: handleLoadMore,
+        onLoadMore, // 使用统一命名
         isLoading,
         onDeleteMessages: deleteMessages,
         onStopGeneration: handleStopGeneration,
@@ -165,11 +165,11 @@ export default function ChatScreen() {
         setIsSelectMode: (value: boolean) => setIsSelectMode(value), // 确保正确的类型
         setSelectedMessages: (value: Set<string>) => setSelectedMessages(value), // 确保正确的类型
         shouldScrollToBottom,
-        setShouldScrollToBottom
+        setShouldScrollToBottom,
     }), [
         messages,
         handleRetry,
-        handleLoadMore,
+        onLoadMore,
         isLoading,
         deleteMessages,
         handleStopGeneration,
@@ -180,57 +180,100 @@ export default function ChatScreen() {
         selectedMessages,
         showDeleteDialog,
         setIsSelectMode,
-        setSelectedMessages, // 更新依赖项
-        // 添加新的依赖
+        setSelectedMessages,
         shouldScrollToBottom,
-        setShouldScrollToBottom
+        setShouldScrollToBottom,
     ]);
+
+    // 添加键盘状态跟踪
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+    
+    // 监听键盘事件
+    useEffect(() => {
+        const keyboardDidShowListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            () => {
+                setKeyboardVisible(true);
+            }
+        );
+        const keyboardDidHideListener = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            () => {
+                setKeyboardVisible(false);
+            }
+        );
+
+        return () => {
+            keyboardDidShowListener.remove();
+            keyboardDidHideListener.remove();
+        };
+    }, []);
 
     return (
         <SafeAreaProvider>
-            <View style={[
-                styles.safeArea, 
-                { 
-                    backgroundColor,
-                    marginTop: Platform.OS === 'ios' ? headerHeight + 14 : headerHeight + 20
-                }
-            ]}>
-                <TouchableWithoutFeedback onPress={dismissKeyboard}>
-                    <View style={[
-                      styles.container, 
-                      { 
+            <KeyboardAvoidingView 
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight + 14 : 0}
+            >
+                <View style={[
+                    styles.safeArea, 
+                    { 
                         backgroundColor,
-                        marginBottom: isGenerating ? 60 : 50
-                      }
-                    ]}>
+                        marginTop: Platform.OS === 'ios' ? headerHeight + 14 : headerHeight + 20
+                    }
+                ]}>
+                    <View style={[styles.messageListContainer, { backgroundColor }]}>
                         <MessageList
                             ref={messageListRef}
                             {...messageListProps}
                         />
                     </View>
-                </TouchableWithoutFeedback>
-                
-                {!isSelectMode && (
-                    <ChatInput
-                        onSendMessage={handleSendMessageWithScroll}
-                        onVoiceInput={handleVoiceInput}
-                        onFileUpload={handleFileUpload}
-                    />
-                )}
-                
-                {showSettings && (
-                    <ChatSettings 
-                      botId={id} 
-                      onClose={() => setShowSettings(false)}
-                    />
-                )}
-            </View>
+                    
+                    {!isSelectMode && (
+                        <View style={styles.inputContainer}>
+                            <ChatInput
+                                onSendMessage={handleSendMessageWithScroll}
+                                onVoiceInput={handleVoiceInput}
+                                onFileUpload={handleFileUpload}
+                            />
+                        </View>
+                    )}
+                    
+                    {/* 设置面板 */}
+                    {showSettings && (
+                        <ChatSettings 
+                            botId={id} 
+                            onClose={() => setShowSettings(false)}
+                        />
+                    )}
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaProvider>
     );
 }
 
 const styles = StyleSheet.create({
-    // ... existing styles ...
+    safeArea: {
+        flex: 1,
+        position: 'relative', // 确保子元素可以相对于此容器定位
+    },
+    messageListContainer: {
+        flex: 1,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 60, // 留出输入框的高度
+    },
+    inputContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 60, // 输入框高度
+        backgroundColor: 'transparent', // 确保背景透明，防止遮挡
+    },
     settingsOverlay: {
       position: 'absolute',
       top: 0,
@@ -239,11 +282,8 @@ const styles = StyleSheet.create({
       bottom: 0,
       zIndex: 1000,
     },
-    safeArea: {
-        flex: 1,
-    },
     container: {
         flex: 1,
     },
-    // ... other existing styles ...
+    // ...other existing styles...
 });

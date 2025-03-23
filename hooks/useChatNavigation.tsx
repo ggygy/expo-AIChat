@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react';
-import { View, TouchableOpacity, Platform } from 'react-native';
+import { View, Pressable, Platform } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native';
@@ -16,8 +16,8 @@ interface UseChatNavigationProps {
   setShowDeleteDialog: (show: boolean) => void;
   manualRefresh: () => void;
   headerHeight?: number;
-  toggleSettings?: () => void; // 添加切换设置的回调
-  showSettings?: boolean; // 添加显示设置的状态
+  toggleSettings?: () => void;
+  showSettings?: boolean;
 }
 
 export function useChatNavigation({
@@ -39,7 +39,7 @@ export function useChatNavigation({
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTitleAlign: 'center',
+      headerTitleAlign: 'start',
       title: isSelectMode
         ? `${selectedMessagesCount} ${i18n.t('chat.selectedCount')}`
         : botName || 'Chat',
@@ -47,7 +47,7 @@ export function useChatNavigation({
         height: headerHeight,
       },
       headerTitleStyle: {
-        fontSize: isSelectMode ? 16 : 17,
+        fontSize: 18,
         fontWeight: '600',
         marginTop: Platform.OS === 'ios' ? -4 : -2,
       },
@@ -59,40 +59,61 @@ export function useChatNavigation({
       headerRight: () => (
         isSelectMode ? (
           <View style={styles.headerElementContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={() => setShowDeleteDialog(true)}
-              style={styles.headerButton}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.headerButtonPressed
+              ]}
+              android_ripple={{ color: 'rgba(255, 0, 0, 0.2)', borderless: true, radius: 20 }}
+              hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome5 name="trash" size={16} color={errorColor} />
-            </TouchableOpacity>
+              <FontAwesome5 name="trash" size={20} color={errorColor} pointerEvents="box-none"/>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.headerElementContainer}>
             {/* 添加设置按钮 */}
             {toggleSettings && (
-              <TouchableOpacity
+              <Pressable
                 onPress={toggleSettings}
-                style={styles.headerButton}
+                style={({ pressed }) => [
+                  styles.headerButton,
+                  pressed && styles.headerButtonPressed
+                ]}
+                android_ripple={{ color: 'rgba(33, 150, 243, 0.2)', borderless: true, radius: 20 }}
+                hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
               >
                 <FontAwesome5 
                   name="cog" 
-                  size={16} 
+                  size={21} 
                   color={showSettings ? '#2196F3' : iconColor}
+                  pointerEvents="box-none"
                 />
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
+            <Pressable
               onPress={manualRefresh}
-              style={styles.headerButton}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.headerButtonPressed
+              ]}
+              android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
+              hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome name="refresh" size={16} color={iconColor} />
-            </TouchableOpacity>
-            <TouchableOpacity
+              <FontAwesome name="refresh" size={21} color={iconColor} pointerEvents="box-none"/>
+            </Pressable>
+            <Pressable
               onPress={() => router.push(`/editBot/${botId}`)}
-              style={styles.headerButton}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.headerButtonPressed
+              ]}
+              android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
+              hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome name="navicon" size={16} color={iconColor} />
-            </TouchableOpacity>
+              <FontAwesome name="navicon" size={21} color={iconColor} pointerEvents="box-none"/>
+            </Pressable>
           </View>
         )
       ),
@@ -105,12 +126,17 @@ export function useChatNavigation({
       headerLeft: () => (
         isSelectMode ? (
           <View style={styles.headerElementContainer}>
-            <TouchableOpacity
+            <Pressable
               onPress={handleCancelSelect}
-              style={styles.headerButton}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed && styles.headerButtonPressed
+              ]}
+              android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <FontAwesome5 name="times" size={18} color={iconColor} />
-            </TouchableOpacity>
+              <FontAwesome5 name="times" size={21} color={iconColor} />
+            </Pressable>
           </View>
         ) : undefined
       ),
@@ -158,8 +184,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     marginHorizontal: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  headerButtonPressed: {
+    opacity: 0.7,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.05)' : undefined,
+    transform: [{ scale: 0.96 }],
   },
 });

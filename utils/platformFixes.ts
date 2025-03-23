@@ -5,30 +5,21 @@ import { Platform } from 'react-native';
  * 某些设备/平台组合可能需要特殊处理
  */
 export function needsSpecialScrollHandling(): boolean {
-  // iOS在某些情况下的FlashList滚动需要特殊处理
-  if (Platform.OS === 'ios') {
-    return true;
-  }
-  
-  // 检查是否为特定Android版本
-  if (Platform.OS === 'android' && Platform.Version < 24) {
-    return true;
-  }
-  
-  return false;
+  // Android 通常需要特殊处理
+  return Platform.OS === 'android';
 }
 
 /**
  * 为滚动操作提供额外的延迟，基于平台调整滚动行为
  */
-export function getScrollDelay(animated: boolean = true): number {
-  // iOS需要更长延迟
+export function getScrollDelay(isAnimated: boolean): number {
+  // 在 iOS 上不需要太长的延迟
   if (Platform.OS === 'ios') {
-    return animated ? 300 : 500;
+    return isAnimated ? 50 : 10;
   }
   
-  // Android默认延迟
-  return animated ? 150 : 250;
+  // Android 需要更长的延迟以确保渲染
+  return isAnimated ? 150 : 50;
 }
 
 /**
@@ -44,35 +35,43 @@ export function isLowPerformanceDevice(): boolean {
 }
 
 /**
- * 获取特定平台优化的FlashList配置
+ * 获取基于平台优化的 FlashList 属性
+ * 返回符合当前平台特性的性能优化配置
  */
 export function getPlatformOptimizedFlashListProps() {
+  // 基础配置
+  const baseProps = {
+    estimatedItemSize: 100, // 估算每个项目的平均高度
+    removeClippedSubviews: true, // 移除不在可视区域内的视图
+    initialNumToRender: 10, // 初始渲染的项目数量
+    maxToRenderPerBatch: 10, // 批量渲染的最大项目数量
+    windowSize: 5, // 窗口大小
+    // 添加正确类型的 maintainVisibleContentPosition
+    maintainVisibleContentPosition: {
+      minIndexForVisible: 0,
+      autoscrollToTopThreshold: 10 // 使用数值而非null
+    }
+  };
+
+  // iOS 平台特定优化
   if (Platform.OS === 'ios') {
     return {
-      estimatedItemSize: 120,
-      initialNumToRender: 10, // 修改：初始渲染10条
-      windowSize: 3,         // 减小窗口大小
-      removeClippedSubviews: true,
-      maxToRenderPerBatch: 5, // 减小批量渲染数
+      ...baseProps,
+      removeClippedSubviews: false, // iOS 上通常不启用此属性，因为可能导致渲染问题
+      maxToRenderPerBatch: 12, // iOS 更新渲染较快，可以增加批量大小
     };
   }
-  
+
+  // Android 平台特定优化
   if (Platform.OS === 'android') {
     return {
-      estimatedItemSize: 100,
-      initialNumToRender: 10, // 修改：初始渲染10条
-      windowSize: 2,         // 减小窗口大小
-      removeClippedSubviews: true,
-      maxToRenderPerBatch: 3, // 减小批量渲染数
+      ...baseProps,
+      // Android 特定优化，增加缓冲以提高滚动性能
+      windowSize: 7,
+      initialNumToRender: 8,
     };
   }
-  
-  // 默认值
-  return {
-    estimatedItemSize: 100,
-    initialNumToRender: 10,  // 修改：初始渲染10条
-    windowSize: 3,          // 减小窗口大小
-    removeClippedSubviews: false,
-    maxToRenderPerBatch: 4,  // 减小批量渲染数
-  };
+
+  // 默认返回基础配置
+  return baseProps;
 }

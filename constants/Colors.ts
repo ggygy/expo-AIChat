@@ -41,6 +41,7 @@ export const Colors = {
       hint: '#757575',
       shadow: 'rgba(0, 0, 0, 0.1)',
       tint: tintColorDark,
+      pressEffect: 'rgba(0, 0, 0, 0.1)',
     },
     
     // Button 组件颜色
@@ -135,6 +136,7 @@ export const Colors = {
       hint: '#888888',
       shadow: 'rgba(0, 0, 0, 0.2)',
       tint: tintColorDark,
+      pressEffect: 'rgba(255, 255, 255, 0.2)',
     },
     
     // Button 组件颜色

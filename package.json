@@ -38,6 +38,7 @@
     "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "expo": "~52.0.31",
+    "expo-av": "^15.0.2",
     "expo-blur": "~14.0.3",
     "expo-clipboard": "^7.0.1",
     "expo-constants": "~17.0.5",

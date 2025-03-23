@@ -1,14 +1,17 @@
-import React, { memo, useState, useRef } from 'react';
+import React, { memo, useState, useRef, useEffect } from 'react';
 import { 
   TextInput, 
   StyleSheet, 
   Platform, 
   KeyboardAvoidingView, 
-  TouchableOpacity, 
+  Pressable,
   Keyboard,
   LayoutAnimation,
   TouchableWithoutFeedback,
   View,
+  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Entypo, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,14 +39,56 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [inputHeight, setInputHeight] = useState(40);
   const [contentHeight, setContentHeight] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [isListening, setIsListening] = useState(false); // 添加语音状态
+  const pulseAnim = useRef(new Animated.Value(1)).current; // 用于麦克风脉冲动画
   const inputRef = useRef<TextInput>(null);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const inputColors = colors.input;
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'text');
-  const backgroundColor = useThemeColor({}, 'background');
+  const accentColor = useThemeColor({}, 'tint'); // 用于麦克风活跃状态
   const shouldShowExpand = contentHeight > 80;
+  const MIN_INPUT_HEIGHT = 45;
+
+  // 麦克风脉冲动画
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation;
+    
+    if (isListening) {
+      // 创建循环动画
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          })
+        ])
+      );
+      animation.start();
+    } else {
+      // 重置动画
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }).start();
+    }
+
+    return () => {
+      if (animation) {
+        animation.stop();
+      }
+    };
+  }, [isListening, pulseAnim]);
 
   const handleSend = () => {
     if (inputText.trim()) {
@@ -68,7 +113,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  // 更新语音输入处理函数
   const handleVoicePress = (status: 'start' | 'end') => {
+    if (status === 'start') {
+      setIsListening(true);
+    } else {
+      setIsListening(false);
+    }
     onVoiceInput?.(status);
   };
 
@@ -77,7 +128,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     setContentHeight(newHeight);
     
     if (!isExpanded) {
-      setInputHeight(Math.min(Math.max(40, newHeight), 80));
+      setInputHeight(Math.min(Math.max(MIN_INPUT_HEIGHT, newHeight), 80));
     }
   };
 
@@ -96,13 +147,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (inputText.trim().length > 0) return null;
     
     return (
-      <TouchableOpacity onPress={toggleInputMode} style={styles.iconButton}>
+      <Pressable 
+        onPress={toggleInputMode} 
+        style={({pressed}) => [
+          styles.iconButton,
+          pressed && styles.buttonPressed
+        ]}
+        android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
+      >
         <FontAwesome5
           name={isVoiceMode ? 'keyboard' : 'microphone'}
           size={20}
           color={iconColor}
         />
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -110,27 +168,43 @@ const ChatInput: React.FC<ChatInputProps> = ({
     return (
       <>
         {!isExpanded && (
-          <TouchableOpacity onPress={onFileUpload} style={styles.iconButton}>
+          <Pressable 
+            onPress={onFileUpload} 
+            style={({pressed}) => [
+              styles.iconButton,
+              pressed && styles.buttonPressed
+            ]}
+            android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
+          >
             <Entypo name="upload" size={20} color={iconColor} />
-          </TouchableOpacity>
+          </Pressable>
         )}
         
         {!isVoiceMode && !isExpanded && shouldShowExpand && (
-          <TouchableOpacity onPress={toggleExpand} style={styles.iconButton}>
+          <Pressable 
+            onPress={toggleExpand} 
+            style={({pressed}) => [
+              styles.iconButton,
+              pressed && styles.buttonPressed
+            ]}
+            android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
+          >
             <FontAwesome5 name="expand-alt" size={20} color={iconColor} />
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {(!isVoiceMode && inputText.trim().length > 0 || isExpanded) && (
-          <TouchableOpacity 
+          <Pressable 
             onPress={handleSend} 
-            style={[
+            style={({pressed}) => [
               styles.iconButton,
-              isExpanded && styles.expandedSendButton
+              isExpanded && styles.expandedSendButton,
+              pressed && styles.buttonPressed
             ]}
+            android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
           >
             <FontAwesome5 name="paper-plane" size={20} color={iconColor} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </>
     );
@@ -152,6 +226,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 styles.container,
                 { 
                   borderColor: inputColors.border,
+                  minHeight: MIN_INPUT_HEIGHT + 10,
                   ...(isExpanded && styles.expandedContainer)
                 }
               ]}
@@ -160,16 +235,38 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
               {isVoiceMode && !isExpanded ? (
                 <View style={styles.inputContainer}>
-                  <TouchableOpacity 
+                  <Pressable 
                     onPressIn={() => handleVoicePress('start')}
                     onPressOut={() => handleVoicePress('end')}
-                    style={[styles.voiceButton, { backgroundColor: inputColors.background }]}
-                    activeOpacity={0.5}
+                    style={({pressed}) => [
+                      styles.voiceButton, 
+                      { backgroundColor: inputColors.background },
+                      pressed && styles.voiceButtonPressed
+                    ]}
+                    android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)'}}
                   >
-                    <ThemedText style={styles.voiceText}>
-                      {i18n.t('chat.holdToSpeak')}
-                    </ThemedText>
-                  </TouchableOpacity>
+                    {isListening ? (
+                      <View style={styles.listeningContainer}>
+                        <Animated.View style={{
+                          transform: [{ scale: pulseAnim }],
+                        }}>
+                          <FontAwesome5 
+                            name="microphone" 
+                            size={22} 
+                            color={accentColor}
+                            style={styles.listeningIcon}
+                          />
+                        </Animated.View>
+                        <ThemedText style={styles.listeningText}>
+                          {i18n.t('chat.listening')}
+                        </ThemedText>
+                      </View>
+                    ) : (
+                      <ThemedText style={styles.voiceText}>
+                        {i18n.t('chat.holdToSpeak')}
+                      </ThemedText>
+                    )}
+                  </Pressable>
                 </View>
               ) : (
                 <TouchableWithoutFeedback onPress={handleInputPress}>
@@ -243,6 +340,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 4,
     paddingVertical: 4,
+    width: '100%',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+    minHeight: 55,
   },
   inputContainer: {
     flex: 1,
@@ -253,6 +354,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlignVertical: 'center',
     paddingHorizontal: 8,
+    minHeight: 45,
   },
   iconButton: {
     width: 40,
@@ -263,7 +365,7 @@ const styles = StyleSheet.create({
   },
   voiceButton: {
     flex: 1,
-    height: 40,
+    height: 45,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -284,6 +386,27 @@ const styles = StyleSheet.create({
     right: 8,
     bottom: 8,
     backgroundColor: 'transparent',
+  },
+  buttonPressed: {
+    opacity: 0.7,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.1)' : undefined,
+    transform: [{ scale: 0.96 }],
+  },
+  voiceButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  listeningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listeningIcon: {
+    marginRight: 8,
+  },
+  listeningText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

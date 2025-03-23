@@ -9,7 +9,8 @@ import {
   Text,
   Dimensions,
   LayoutRectangle,
-  FlatList
+  FlatList,
+  Pressable
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
@@ -173,10 +174,10 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
-              <TouchableOpacity
+              <Pressable
                 style={[styles.menuItem, { width: itemWidth }]}
                 onPress={() => handleMenuPress(item)}
-                activeOpacity={0.8}
+                android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}
               >
                 <View style={styles.menuItemContent}>
                   <FontAwesome
@@ -193,7 +194,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                     {item.label}
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
           />
         </Animated.View>

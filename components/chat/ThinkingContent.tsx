@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo, memo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { ThemedText } from '../ThemedText';
 import OptimizedMarkdown from '@/components/markdown/OptimizedMarkdown';
@@ -18,7 +18,7 @@ const ThinkingContent: React.FC<ThinkingContentProps> = ({
   thinkingMarkdownStyles,
   thinkingBgColor,
   thinkingTextColor,
-  initialIsExpanded = true, // 默认展开
+  initialIsExpanded = false, // 默认展开
 }) => {
   const [isExpanded, setIsExpanded] = useState(initialIsExpanded);
   const iconColor = useThemeColor({}, 'text');
@@ -42,7 +42,7 @@ const ThinkingContent: React.FC<ThinkingContentProps> = ({
                           !content.toLowerCase().includes('reasoning:');
     
     if (needsFormatting) {
-      content = `思考过程：\n\n${content}`;
+      content = `${content}`;
     }
     
     return content;
@@ -56,9 +56,10 @@ const ThinkingContent: React.FC<ThinkingContentProps> = ({
   return (
     <View style={[styles.thinkingContainer, { backgroundColor: thinkingBgColor }]}>
       {/* 思考标头 - 可点击切换展开/折叠状态 */}
-      <TouchableOpacity 
+      <Pressable 
         style={styles.thinkingHeader}
         onPress={() => setIsExpanded(!isExpanded)}
+        android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
       >
         <ThemedText 
           style={[styles.thinkingLabel, { color: thinkingTextColor }]}
@@ -70,7 +71,7 @@ const ThinkingContent: React.FC<ThinkingContentProps> = ({
           size={16} 
           color={iconColor} 
         />
-      </TouchableOpacity>
+      </Pressable>
       
       {/* 思考内容 - 仅在展开时显示 */}
       {isExpanded && (
@@ -110,4 +111,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default React.memo(ThinkingContent);
+export default memo(ThinkingContent);

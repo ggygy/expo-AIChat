@@ -113,8 +113,8 @@ const PromptSelector = ({ botId }: PromptSelectorProps) => {
           value={customSystemPrompt}
           onChangeText={handleUpdateCustomPrompt}
           multiline
-          numberOfLines={3}
           textAlignVertical="top"
+          numberOfLines={6}
           style={[styles.customPromptInput, { borderColor }]}
           placeholder={i18n.t('chat.customPromptPlaceholder')}
           editable={!selectedPromptId}
@@ -161,8 +161,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   customPromptInput: {
-    height: 80,
+    height: 120,
     textAlignVertical: 'top',
+    paddingTop: 10,
   },
 });
 

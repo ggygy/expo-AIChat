@@ -3,7 +3,7 @@ import { Message } from '@/constants/chat';
 import { messageDb } from '@/database';
 
 /**
- * 消息管理Hook - 使用本地数据库加载消息，添加优化的批量加载和预加载功能
+ * 消息管理Hook - 适配反转列表的消息加载逻辑
  */
 export function useChatMessages(chatId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -12,11 +12,15 @@ export function useChatMessages(chatId: string) {
   const isFirstLoadRef = useRef(true);
   const shouldScrollToBottomRef = useRef(true);
   const lastLoadTimestampRef = useRef(0);
-  const offsetRef = useRef(0);
-  const batchSizeRef = useRef(10); // 每次加载的消息数量
+  const initialBatchSizeRef = useRef(15); // 初始加载的消息数量（最新的几条）
+  const regularBatchSizeRef = useRef(10); // 常规加载批次大小
   const isPreloadingRef = useRef(false); // 是否正在预加载
   
-  // 初始加载消息
+  // 分页相关状态
+  const currentPageRef = useRef(1);
+  const allMessagesLoadedRef = useRef(false);
+  
+  // 初始加载最新的几条消息
   useEffect(() => {
     let isMounted = true;
     
@@ -25,19 +29,34 @@ export function useChatMessages(chatId: string) {
       
       setIsLoading(true);
       try {
-        // 从本地数据库加载消息
-        const result = await messageDb.getMessages(chatId, batchSizeRef.current, 0);
-        // 使用 getMessageCount 方法获取消息总数，或者根据结果长度确定
+        // 获取消息总数
         const count = await messageDb.getMessageCount(chatId);
+        setTotalMessages(count || 0);
+        
+        if (count === 0) {
+          setMessages([]);
+          return;
+        }
+        
+        // 计算从末尾开始的偏移量
+        const offset = Math.max(0, count - initialBatchSizeRef.current);
+        console.log(`初始加载最新消息: 总数=${count}, 偏移=${offset}, 数量=${initialBatchSizeRef.current}`);
+        
+        // 加载最新的 N 条消息
+        const result = await messageDb.getMessages(chatId, initialBatchSizeRef.current, offset);
         
         if (isMounted) {
           if (result && result.length > 0) {
-            // 修改排序方式：按时间戳升序排序（最旧的消息在前面，最新的在后面）
+            // 排序 - 保持时间戳升序排序，从旧到新
             const sortedMessages = [...result].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
             setMessages(sortedMessages);
-            offsetRef.current = result.length;
+            
+            // 重置页码
+            currentPageRef.current = 1;
+            
+            // 判断是否已加载所有消息
+            allMessagesLoadedRef.current = (offset === 0);
           }
-          setTotalMessages(count || 0);
           lastLoadTimestampRef.current = Date.now();
         }
       } catch (error) {
@@ -56,42 +75,37 @@ export function useChatMessages(chatId: string) {
     };
   }, [chatId]);
   
-  // 加载更多消息 - 优化版本，从本地数据库加载
-  const handleLoadMore = useCallback(async () => {
-    if (!chatId || isLoading || isPreloadingRef.current) return;
+  // 加载更多历史消息 - 适用于反转列表的上拉加载逻辑
+  const loadMoreMessages = useCallback(async () => {
+    if (!chatId || isLoading || isPreloadingRef.current || allMessagesLoadedRef.current) {
+      console.log(`加载取消: ${isLoading ? '正在加载' : isPreloadingRef.current ? '正在预加载' : '已加载所有消息'}`);
+      return false;
+    }
     
     // 节流控制: 如果距离上次加载不足1秒，则不执行
     const currentTime = Date.now();
     if (currentTime - lastLoadTimestampRef.current < 1000) {
-      return;
+      console.log('加载节流: 上次加载时间太近');
+      return false;
     }
     
-    // 如果没有更多消息可加载，提前返回
-    if (messages.length >= totalMessages) {
-      return;
-    }
-    
+    console.log(`开始加载更早消息: 页码=${currentPageRef.current + 1}`);
     isPreloadingRef.current = true;
     setIsLoading(true);
     
     try {
-      // 使用requestAnimationFrame执行异步操作，避免阻塞UI
-      await new Promise(resolve => requestAnimationFrame(resolve));
+      // 计算偏移量和批次大小，针对反转列表
+      const currentCount = messages.length;
+      const offset = Math.max(0, currentCount - (currentPageRef.current + 1) * regularBatchSizeRef.current);
+      const batchSize = regularBatchSizeRef.current;
       
-      const offset = offsetRef.current;
-      console.log(`加载更多消息: 偏移=${offset}, 批量大小=${batchSizeRef.current}`);
+      console.log(`加载更早消息: 偏移=${offset}, 批量大小=${batchSize}`);
       
-      // 从本地数据库加载更多消息
-      const olderMessages = await messageDb.getMessages(chatId, batchSizeRef.current, offset);
+      // 获取更早的消息
+      const olderMessages = await messageDb.getMessages(chatId, batchSize, offset);
+      console.log(`成功加载${olderMessages?.length || 0}条更早消息`);
       
-      // 自适应批量大小：根据加载速度调整
-      const loadingTime = Date.now() - currentTime;
-      if (loadingTime < 300 && batchSizeRef.current < 40) {
-        batchSizeRef.current = Math.min(40, batchSizeRef.current + 5);
-      } else if (loadingTime > 1000 && batchSizeRef.current > 15) {
-        batchSizeRef.current = Math.max(15, batchSizeRef.current - 5);
-      }
-      
+      // 如果获取到了消息
       if (olderMessages && olderMessages.length > 0) {
         setMessages(oldMessages => {
           // 使用Map去重，避免重复消息
@@ -102,60 +116,85 @@ export function useChatMessages(chatId: string) {
             messageMap.set(msg.id, msg);
           });
           
-          // 添加新消息，并检查重复
+          // 再添加新消息
           olderMessages.forEach(msg => {
             if (!messageMap.has(msg.id)) {
               messageMap.set(msg.id, msg);
             }
           });
           
-          // 转换回数组并排序 - 修改为按时间戳升序排序
-          const newMessages = Array.from(messageMap.values())
+          // 转换回数组并排序 - 保持升序排序
+          return Array.from(messageMap.values())
             .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-          
-          // 更新偏移量
-          offsetRef.current += olderMessages.length;
-          
-          return newMessages;
         });
         
+        // 更新页码
+        currentPageRef.current += 1;
+        
+        // 判断是否已加载所有消息
+        if (offset <= batchSize) {
+          allMessagesLoadedRef.current = true;
+          console.log('已加载所有历史消息');
+        }
+        
         lastLoadTimestampRef.current = currentTime;
+        return true;
+      } else {
+        // 没有更多消息可加载
+        allMessagesLoadedRef.current = true;
+        console.log('没有更多历史消息');
+        return false;
       }
     } catch (error) {
       console.error('加载更多消息失败:', error);
+      return false;
     } finally {
       setIsLoading(false);
-      // 延迟重置预加载状态，避免短时间内多次触发
       setTimeout(() => {
         isPreloadingRef.current = false;
       }, 300);
     }
-  }, [chatId, isLoading, messages.length, totalMessages]);
+  }, [chatId, isLoading, messages.length]);
   
-  // 手动刷新聊天记录
+  // 手动刷新聊天记录 - 保持与原来逻辑兼容
   const manualRefresh = useCallback(async () => {
     if (!chatId) return;
     
     setIsLoading(true);
-    offsetRef.current = 0;
+    // 重置所有偏移量和状态
+    currentPageRef.current = 1;
+    allMessagesLoadedRef.current = false;
     
     try {
-      // 重新获取消息总数，使用正确的方法名
+      // 重新获取消息总数
       const count = await messageDb.getMessageCount(chatId);
+      setTotalMessages(count || 0);
       
-      // 重新获取第一批消息
-      const result = await messageDb.getMessages(chatId, batchSizeRef.current, 0);
+      if (count === 0) {
+        setMessages([]);
+        return;
+      }
+      
+      // 计算从末尾开始的偏移量
+      const offset = Math.max(0, count - initialBatchSizeRef.current);
+      
+      // 加载最新的 N 条消息
+      const result = await messageDb.getMessages(chatId, initialBatchSizeRef.current, offset);
       
       if (result && result.length > 0) {
-        // 修改排序方式：按时间戳升序排序
+        // 按时间戳升序排序
         const sortedMessages = [...result].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         setMessages(sortedMessages);
-        offsetRef.current = result.length;
+        
+        // 更新页码
+        currentPageRef.current = 1;
+        
+        // 检查是否已加载所有消息
+        allMessagesLoadedRef.current = (offset === 0);
       } else {
         setMessages([]);
       }
       
-      setTotalMessages(count || 0);
       lastLoadTimestampRef.current = Date.now();
       shouldScrollToBottomRef.current = true;
     } catch (error) {
@@ -165,9 +204,9 @@ export function useChatMessages(chatId: string) {
     }
   }, [chatId]);
   
-  // 删除消息 - 修改返回类型为 Promise<boolean>
+  // 删除消息
   const deleteMessages = useCallback(async (messageIds: string[]): Promise<boolean> => {
-    if (!messageIds.length) return true; // 如果没有消息要删除，直接返回成功
+    if (!messageIds.length) return true;
     
     try {
       // 乐观更新：立即从UI中移除消息
@@ -175,23 +214,21 @@ export function useChatMessages(chatId: string) {
         prevMessages.filter(msg => !messageIds.includes(msg.id))
       );
       
-      // 调整总消息数
-      setTotalMessages(prev => Math.max(0, prev - messageIds.length));
+      // 调整总消息数和偏移量
+      const deletedCount = messageIds.length;
+      setTotalMessages(prev => Math.max(0, prev - deletedCount));
       
       // 异步删除数据库中的消息
       for (const messageId of messageIds) {
         await messageDb.deleteMessage(messageId);
       }
       
-      // 更新偏移量
-      offsetRef.current = Math.max(0, offsetRef.current - messageIds.length);
-      
-      return true; // 删除成功返回 true
+      return true;
     } catch (error) {
       console.error('删除消息失败:', error);
       // 如果删除失败，重新获取最新消息
       manualRefresh();
-      return false; // 删除失败返回 false
+      return false;
     }
   }, [chatId, manualRefresh]);
   
@@ -203,19 +240,16 @@ export function useChatMessages(chatId: string) {
       if (exists) {
         // 如果消息已存在，则更新它
         return prev.map(m => m.id === message.id ? message : m)
-          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); // 修改为按时间戳升序排序
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       } else {
-        // 否则添加新消息 - 新消息应该添加到数组末尾而不是开头
+        // 添加新消息并排序
         return [...prev, message]
-          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); // 修改为按时间戳升序排序
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       }
     });
     
     // 增加总消息计数
     setTotalMessages(prev => prev + 1);
-    
-    // 增加偏移量
-    offsetRef.current += 1;
   }, []);
   
   // 设置是否应该滚动到底部
@@ -223,17 +257,17 @@ export function useChatMessages(chatId: string) {
     shouldScrollToBottomRef.current = value;
   }, []);
   
-  // 启用预加载的函数，可以由组件调用
+  // 启用预加载
   const enablePreloading = useCallback(() => {
-    if (isPreloadingRef.current || isLoading || messages.length >= totalMessages) return;
+    if (isPreloadingRef.current || isLoading || allMessagesLoadedRef.current) return;
     
     isPreloadingRef.current = true;
     
     // 执行预加载
     const preload = async () => {
       try {
-        if (messages.length < totalMessages) {
-          await handleLoadMore();
+        if (!allMessagesLoadedRef.current) {
+          await loadMoreMessages();
         }
       } catch (error) {
         console.error('预加载失败:', error);
@@ -243,13 +277,18 @@ export function useChatMessages(chatId: string) {
     };
     
     preload();
-  }, [handleLoadMore, isLoading, messages.length, totalMessages]);
+  }, [loadMoreMessages, isLoading]);
+  
+  // 检查是否已加载所有消息
+  const hasLoadedAllMessages = useCallback(() => {
+    return allMessagesLoadedRef.current;
+  }, []);
   
   return {
     messages,
     setMessages,
     isLoading,
-    handleLoadMore,
+    onLoadMore: loadMoreMessages,
     totalMessages,
     setTotalMessages,
     deleteMessages,
@@ -259,5 +298,6 @@ export function useChatMessages(chatId: string) {
     shouldScrollToBottom: shouldScrollToBottomRef,
     setShouldScrollToBottom,
     enablePreloading,
+    hasLoadedAllMessages,
   };
 }

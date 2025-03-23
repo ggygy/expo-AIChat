@@ -2,7 +2,8 @@ import { useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import * as Speech from 'expo-speech';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import { Platform, Share } from 'react-native';
 import { ActionMenuItem } from '@/components/chat/ActionMenu';
 import { Message } from '@/constants/chat';
 import i18n from '@/i18n/i18n';
@@ -188,8 +189,10 @@ export const useMessageActions = ({
   // 处理分享
   const handleShare = async () => {
     try {
-      // 分享文本内容
-      const textToShare = message.content;
+      // 分享文本内容，包括思考内容（如果有）
+      const textToShare = message.thinkingContent 
+        ? `${i18n.t('chat.thinking')}:\n${message.thinkingContent}\n\n${i18n.t('chat.answer')}:\n${message.content}`
+        : message.content;
       
       if (!textToShare) return;
       
@@ -205,19 +208,66 @@ export const useMessageActions = ({
           showSuccess('common.copySuccess');
         }
       } else {
-        // 原生平台使用expo-sharing
-        if (await Sharing.isAvailableAsync()) {
-          // 因为Sharing API只能分享文件，需要先将文本保存为临时文件
-          // 这里简化了，实际应用中需要创建一个临时文件
-          await Clipboard.setStringAsync(textToShare);
-          showSuccess('chat.useShareOrCopy');
+        // 原生平台使用React Native Share API
+        if (Platform.OS === 'ios' || Platform.OS === 'android') {
+          try {
+            // 使用React Native内置的Share API
+            const result = await Share.share({
+              message: textToShare,
+              title: i18n.t('chat.shareTitle')
+            });
+            
+            if (result.action === Share.dismissedAction) {
+              // 用户取消了分享
+              return;
+            }
+          } catch (error) {
+            // 如果Share API失败，尝试使用Expo Sharing API创建临时文件分享
+            await shareViaFile(textToShare);
+          }
         } else {
-          await Clipboard.setStringAsync(textToShare);
-          showSuccess('common.copySuccess');
+          // 其他平台使用Expo Sharing API
+          await shareViaFile(textToShare);
         }
       }
     } catch (error) {
+      console.error('分享失败:', error);
       showError('chat.shareFailed');
+    }
+  };
+  
+  // 通过创建临时文件来分享文本
+  const shareViaFile = async (text: string) => {
+    try {
+      // 检查分享功能是否可用
+      if (!(await Sharing.isAvailableAsync())) {
+        await Clipboard.setStringAsync(text);
+        showSuccess('common.copySuccess');
+        return;
+      }
+      
+      // 创建临时文本文件
+      const fileName = `${FileSystem.cacheDirectory}share_message_${Date.now()}.txt`;
+      await FileSystem.writeAsStringAsync(fileName, text);
+      
+      // 分享文件
+      await Sharing.shareAsync(fileName, {
+        mimeType: 'text/plain',
+        dialogTitle: i18n.t('chat.shareMessage'),
+      });
+      
+      // 分享完成后删除临时文件
+      try {
+        await FileSystem.deleteAsync(fileName, { idempotent: true });
+      } catch (e) {
+        // 忽略删除失败的错误
+        console.log('清理临时文件失败', e);
+      }
+    } catch (error) {
+      console.error('文件分享失败:', error);
+      // 如果文件分享失败，回退到复制到剪贴板
+      await Clipboard.setStringAsync(text);
+      showSuccess('common.copySuccess');
     }
   };
   

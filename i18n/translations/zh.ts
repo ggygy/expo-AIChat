@@ -20,6 +20,7 @@ export const zh = {
     done: "完成",
     new: "新建",
     edit: "编辑",
+    micPermissionDenied: "麦克风权限被拒绝，请在设置中开启。",
   },
   tabs: {
     home: '首页',
@@ -67,7 +68,7 @@ export const zh = {
     selectText: '文本选择',
     exitSelectText: '退出选择',
     selectTextHint: '现在您可以长按选择文本',
-    readAloud: '朗读',
+    readAloud: '朗读文本',
     stopReading: '停止朗读',
     readError: '朗读失败',
     dislike: '点踩',
@@ -84,7 +85,13 @@ export const zh = {
     unknownPrompt: "未知模板",
     orUseCustomPrompt: "或使用自定义提示词",
     customPromptPlaceholder: "输入自定义系统提示词",
-    noToolsEnabled: "未启用工具"
+    noToolsEnabled: "未启用工具",
+    scrollToBottom: '滚动到底部',
+    allMessagesLoaded: '已加载全部消息',
+    listening: "正在聆听...",
+    listeningStart: '请开始说话',
+    speechRecognitionFailed: "语音识别失败，请重试。",
+    recordingFailed: '录音失败，请重试。',
   },
   config: {
     title: '服务商配置',

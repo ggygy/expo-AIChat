@@ -1,13 +1,13 @@
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
   Platform,
   ViewStyle,
   TextStyle,
-  TouchableOpacityProps,
+  PressableProps,
   StyleProp,
   GestureResponderEvent,
   DimensionValue,
@@ -20,7 +20,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'small' | 'medium' | 'large';
 
-interface ButtonProps extends TouchableOpacityProps {
+interface ButtonProps extends PressableProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   isLoading?: boolean;
@@ -190,19 +190,37 @@ export const Button: React.FC<ButtonProps> = ({
       </View>
     );
   };
+  
+  // 获取 ripple 颜色，基于按钮的变种设置适当的颜色
+  const getRippleColor = () => {
+    if (variant === 'primary') return 'rgba(255, 255, 255, 0.2)';
+    if (variant === 'danger') return 'rgba(255, 255, 255, 0.2)';
+    if (variant === 'outline') return `${buttonColors.outline.text}33`;
+    if (variant === 'ghost') return `${buttonColors.ghost.text}33`;
+    return 'rgba(0, 0, 0, 0.1)';
+  };
 
   return (
-    <TouchableOpacity
-      style={buttonStyles}
+    <Pressable
+      style={({ pressed }) => [
+        buttonStyles, 
+        pressed && !disabled && styles.buttonPressed,
+        pressed && !disabled && variant === 'outline' && { backgroundColor: `${buttonColors.outline.text}10` },
+        pressed && !disabled && variant === 'ghost' && { backgroundColor: `${buttonColors.ghost.text}10` }
+      ]}
       disabled={disabled || isLoading}
-      activeOpacity={Platform.select({ ios: 0.6, android: 0.7 })}
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={delayLongPress}
+      android_ripple={{ 
+        color: getRippleColor(), 
+        borderless: false,
+        foreground: true
+      }}
       {...props}
     >
       {renderContent()}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -265,5 +283,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  buttonPressed: {
+    opacity: Platform.OS === 'ios' ? 0.8 : 1,
+    transform: Platform.OS === 'ios' ? [{ scale: 0.98 }] : undefined,
   },
 });

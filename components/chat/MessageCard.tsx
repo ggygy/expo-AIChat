@@ -156,7 +156,7 @@ const MessageCard: FC<MessageCardProps> = ({
                                             thinkingMarkdownStyles={thinkingMarkdownStyles}
                                             thinkingBgColor={colors.thinkingBg || '#f5f5f5'}
                                             thinkingTextColor={colors.thinkingText || '#666'}
-                                            initialIsExpanded={message.isThinkingExpanded !== false}
+                                            initialIsExpanded={isStreaming ? true : message.isThinkingExpanded}
                                         />
                                     )}
                                     

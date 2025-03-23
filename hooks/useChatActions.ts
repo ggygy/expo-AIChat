@@ -1,9 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Message, Role } from '@/constants/chat';
 import { messageDb } from '@/database';
 import { useAIChat } from '@/hooks/useAIChat';
 import { useBotStore } from '@/store/useBotStore';
 import i18n from '@/i18n/i18n';
+import { useExpoSpeechInput } from '@/hooks/useExpoSpeechInput';
+import { Alert } from 'react-native';
 
 // 定义消息状态的类型
 type MessageStatus = 'sending' | 'streaming' | 'sent' | 'error';
@@ -23,6 +25,22 @@ export function useChatActions(
     stopGeneration
   } = useAIChat(chatId);
   const updateBotStats = useBotStore(state => state.updateBotStats);
+  
+  // 使用新的Expo语音识别hook
+  const { 
+    startListening, 
+    stopListening, 
+    speechResult, 
+    resetSpeechResult,
+    error: speechError,
+    speakText,
+    stopSpeaking,
+  } = useExpoSpeechInput();
+  
+  // 是否正在进行语音输入
+  const [isVoiceInputActive, setIsVoiceInputActive] = useState(false);
+  // 是否正在朗读
+  const [isReadingAloud, setIsReadingAloud] = useState(false);
 
   // 发送新消息
   const handleSendMessage = useCallback(async (text: string) => {
@@ -212,11 +230,91 @@ export function useChatActions(
     stopGeneration(); // 使用新的停止生成函数来确保保存内容
   }, [stopGeneration]);
 
-  // 语音输入
-  const handleVoiceInput = useCallback(() => {
-    console.log('Voice input activated');
-    // TODO: 实现语音输入逻辑
-  }, []);
+  // 处理语音输入
+  const handleVoiceInput = useCallback(async (status: 'start' | 'end') => {
+    try {
+      if (status === 'start') {
+        console.log('开始语音输入');
+        
+        // 先设置状态，然后再调用API
+        setIsVoiceInputActive(true);
+        
+        // 添加更多调试信息
+        console.log('调用语音识别API...');
+        const started = await startListening();
+        console.log('语音识别API返回结果:', started);
+        
+        if (!started) {
+          console.error('语音识别启动失败');
+          setIsVoiceInputActive(false);
+          
+          // 显示详细错误信息
+          const errorMsg = speechError || i18n.t('chat.speechRecognitionFailed');
+          console.error('错误详情:', errorMsg);
+          
+          if (speechError) {
+            Alert.alert(i18n.t('common.error'), speechError);
+          }
+        }
+      } else if (status === 'end') {
+        console.log('结束语音输入');
+        
+        // 确保在API调用前，UI状态已经更新
+        setIsVoiceInputActive(false);
+        
+        // 添加更多调试信息
+        console.log('调用停止语音识别API...');
+        const result = await stopListening();
+        console.log('语音识别结果:', result);
+        
+        // 如果有识别结果，直接发送
+        if (result && result.trim()) {
+          console.log('处理语音识别结果:', result);
+          await handleSendMessage(result);
+          resetSpeechResult(); // 重置识别结果
+        } else if (speechError) {
+          console.error('语音识别出错:', speechError);
+          Alert.alert(
+            i18n.t('common.error'), 
+            speechError || i18n.t('chat.speechRecognitionFailed')
+          );
+        }
+      }
+    } catch (error) {
+      console.error('语音输入处理出错:', error);
+      setIsVoiceInputActive(false);
+      Alert.alert(
+        i18n.t('common.error'),
+        error instanceof Error ? error.message : i18n.t('common.unknownError')
+      );
+    }
+  }, [startListening, stopListening, speechResult, handleSendMessage, resetSpeechResult, speechError]);
+
+  // 朗读文本功能
+  const handleReadMessage = useCallback(async (text: string) => {
+    try {
+      setIsReadingAloud(true);
+      await speakText(text);
+      setIsReadingAloud(false);
+      return true;
+    } catch (error) {
+      console.error('朗读消息失败:', error);
+      setIsReadingAloud(false);
+      return false;
+    }
+  }, [speakText]);
+
+  // 停止朗读功能
+  const handleStopReading = useCallback(async () => {
+    try {
+      await stopSpeaking();
+      setIsReadingAloud(false);
+      return true;
+    } catch (error) {
+      console.error('停止朗读失败:', error);
+      return false;
+    }
+  }, [stopSpeaking]);
 
   // 文件上传
   const handleFileUpload = useCallback(() => {
@@ -230,6 +328,10 @@ export function useChatActions(
     handleStopGeneration,
     handleVoiceInput,
     handleFileUpload,
-    isGenerating
+    isGenerating,
+    isVoiceInputActive,
+    handleReadMessage,
+    handleStopReading,
+    isReadingAloud,
   };
 }

@@ -3,7 +3,7 @@ import { View, StyleSheet, Modal, ScrollView, SafeAreaView, TouchableOpacity } f
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { ModelProviderId } from '@/constants/ModelProviders';
+import { MODEL_PROVIDERS, ModelProviderId } from '@/constants/ModelProviders';
 import { useProviderStore } from '@/store/useProviderStore';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -30,6 +30,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
   const [isTesting, setIsTesting] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const provider = providers.find(p => p.id === providerId);
+  const internalModels = MODEL_PROVIDERS.find(p => p.id === providerId)?.availableModels || [];
   const config = providers.find(p => p.id === providerId);
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -180,7 +181,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
           {renderApiTestSection()}
           <ThemedText style={styles.sectionTitle}>{i18n.t('config.modelList')}</ThemedText>
 
-          {provider.availableModels.map(model => (
+          {internalModels.map(model => (
             <ModelItem
               key={model.id}
               model={model}

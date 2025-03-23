@@ -8,6 +8,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { ToolDefinition } from '@/langchain/tools';
 import i18n from '@/i18n/i18n';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { Button } from '@/components/ui/Button';
 
 interface ToolsTabProps {
   onNavigateToEditor: (id?: string) => void;
@@ -67,13 +68,14 @@ export function ToolsTab({ onNavigateToEditor }: ToolsTabProps) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
         ListFooterComponent={
-          <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: primaryColor }]}
+          <Button
+            variant="primary"
+            leftIcon={<IconSymbol name="add-circle" size={20} color="#FFF" />}
             onPress={() => onNavigateToEditor()}
+            style={{ marginTop: 8 }}
           >
-            <IconSymbol name="add-circle" size={20} color="#FFF" />
-            <ThemedText style={styles.addButtonText}>{i18n.t('explore.addNewTool')}</ThemedText>
-          </TouchableOpacity>
+            {i18n.t('explore.addNewTool')}
+          </Button>
         }
       />
     </ThemedView>
@@ -135,18 +137,5 @@ const styles = StyleSheet.create({
   },
   systemBadgeText: {
     fontSize: 12,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  addButtonText: {
-    color: '#FFF',
-    marginLeft: 8,
-    fontWeight: '500',
   },
 });

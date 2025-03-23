@@ -8,6 +8,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { PromptTemplateType } from '@/langchain/prompt';
 import i18n from '@/i18n/i18n';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { Button } from '@/components/ui/Button';
 
 interface PromptTemplatesTabProps {
   onNavigateToEditor: (id?: string) => void;
@@ -66,13 +67,14 @@ export function PromptTemplatesTab({ onNavigateToEditor }: PromptTemplatesTabPro
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
         ListFooterComponent={
-          <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: primaryColor }]}
+          <Button
+            variant="primary"
+            leftIcon={<IconSymbol name="add-circle" size={20} color="#FFF" />}
             onPress={() => onNavigateToEditor()}
+            style={{ marginTop: 8 }}
           >
-            <IconSymbol name="add-circle" size={20} color="#FFF" />
-            <ThemedText style={styles.addButtonText}>{i18n.t('explore.addNewTemplate')}</ThemedText>
-          </TouchableOpacity>
+            {i18n.t('explore.addNewTemplate')}
+          </Button>
         }
       />
     </ThemedView>
@@ -134,17 +136,5 @@ const styles = StyleSheet.create({
   },
   systemBadgeText: {
     fontSize: 12,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#FFF',
-    marginLeft: 8,
-    fontWeight: '500',
   },
 });

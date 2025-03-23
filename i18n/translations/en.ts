@@ -20,6 +20,7 @@ export const en = {
     done: "Done",
     new: "New",
     edit: "Edit",
+    micPermissionDenied: "Microphone permission denied. Please enable it in settings.",
   },
   tabs: {
     home: 'Home',
@@ -85,7 +86,11 @@ export const en = {
     orUseCustomPrompt: "Or use custom prompt",
     customPromptPlaceholder: "Enter custom system prompt",
     noToolsEnabled: "No tools enabled",
-    typeMessage: "Type a message..."
+    typeMessage: "Type a message...",
+    listening: "Listening...",
+    speechRecognitionFailed: "Speech recognition failed. Please try again.",
+    listeningStart: "Please start speaking",
+    recordingFailed: "Failed to record audio. Please try again.",
   },
   config: {
     title: 'Provider Configuration',

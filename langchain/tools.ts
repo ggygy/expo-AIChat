@@ -1,5 +1,6 @@
-import { DynamicTool } from "langchain/tools";
+import { DynamicStructuredToolInput, DynamicTool, DynamicToolInput } from "langchain/tools";
 import { Tool } from "langchain/tools";
+import { z } from "zod";
 
 /**
  * 工具类型定义
@@ -21,6 +22,52 @@ export interface ToolDefinition {
   updatedAt: number;
   isSystem?: boolean; // 是否是系统工具
   category?: string; // 可选的分类
+  toolType?: string; // 工具类型：structured或dynamic
+}
+
+/**
+ * 将 parameters 对象转换为 Zod 架构
+ */
+export function parametersToZodSchema(parameters: ToolDefinition['parameters']): z.ZodObject<any> {
+  // 创建一个空的 Zod 对象作为起点
+  let schema: Record<string, z.ZodTypeAny> = {};
+  
+  // 遍历所有属性并转换为相应的 Zod 类型
+  for (const [key, prop] of Object.entries(parameters.properties)) {
+    let fieldSchema: z.ZodTypeAny;
+    
+    // 根据属性类型创建对应的 Zod 类型
+    switch (prop.type) {
+      case 'string':
+        fieldSchema = z.string();
+        break;
+      case 'number':
+        fieldSchema = z.number();
+        break;
+      case 'boolean':
+        fieldSchema = z.boolean();
+        break;
+      case 'array':
+        // 对于数组，默认使用任意值数组
+        fieldSchema = z.array(z.any());
+        break;
+      default:
+        // 默认使用任意类型
+        fieldSchema = z.any();
+    }
+    
+    // 添加描述（这是关键，让大模型理解参数的意义）
+    fieldSchema = fieldSchema.describe(prop.description);
+    
+    // 检查是否为必需字段
+    if (!parameters.required.includes(key)) {
+      fieldSchema = fieldSchema.optional();
+    }
+    
+    schema[key] = fieldSchema;
+  }
+  
+  return z.object(schema);
 }
 
 /**
@@ -39,34 +86,66 @@ export function createDynamicTool(toolDef: ToolDefinition): Tool {
     }
   };
 
-  // 修改这里，使用正确的属性将参数传递给DynamicTool
-  return new DynamicTool({
-    name: toolDef.name,
-    description: toolDef.description,
-    // 不再使用 schema 属性
-    // schema: toolDef.parameters,
+  // 确定是创建结构化工具还是动态工具
+  const useStructuredTool = toolDef.toolType === 'structured' || 
+                           (toolDef.parameters && Object.keys(toolDef.parameters.properties).length > 0);
+  
+  if (useStructuredTool) {
+    // 使用 Zod schema 创建结构化工具
+    const schema = parametersToZodSchema(toolDef.parameters);
     
-    // 直接使用函数，不定义模式
-    func: async (input: string) => {
-      try {
-        // 解析输入字符串为参数对象
-        let args: Record<string, any> = {};
+    // 创建结构化工具配置
+    const toolConfig: DynamicStructuredToolInput = {
+      name: toolDef.name,
+      description: toolDef.description,
+      schema: schema,
+      func: async (input: Record<string, any>) => {
         try {
-          // 尝试将输入解析为 JSON
-          args = JSON.parse(input);
-        } catch (parseError) {
-          // 如果解析失败，将整个输入作为单个参数
-          args = { input };
+          // 直接使用结构化输入
+          const result = await Promise.resolve(safeExec(toolDef.func, input));
+          return typeof result === 'string' ? result : JSON.stringify(result);
+        } catch (error) {
+          return `工具执行错误: ${error instanceof Error ? error.message : '未知错误'}`;
         }
-        
-        // 执行函数
-        const result = await Promise.resolve(safeExec(toolDef.func, args));
-        return typeof result === 'string' ? result : JSON.stringify(result);
-      } catch (error) {
-        return `工具执行错误: ${error instanceof Error ? error.message : '未知错误'}`;
       }
-    }
-  });
+    };
+
+    return new DynamicTool(toolConfig);
+  } else {
+    // 创建简单的动态工具
+    const toolConfig: DynamicToolInput = {
+      name: toolDef.name,
+      description: toolDef.description,
+      func: async (inputStr: string) => {
+        try {
+          // 解析输入字符串
+          let input: Record<string, any> = {};
+          try {
+            // 尝试将输入解析为 JSON
+            input = JSON.parse(inputStr);
+          } catch (parseError: any) {
+            // 如果解析失败，创建一个只包含输入字符串的对象
+            if (toolDef.parameters.required.length === 1) {
+              // 如果只有一个必需参数，将整个输入作为该参数
+              const paramName = toolDef.parameters.required[0];
+              input = { [paramName]: inputStr };
+            } else {
+              // 否则将输入作为通用参数
+              input = { input: inputStr };
+            }
+          }
+          
+          // 执行函数
+          const result = await Promise.resolve(safeExec(toolDef.func, input));
+          return typeof result === 'string' ? result : JSON.stringify(result);
+        } catch (error) {
+          return `工具执行错误: ${error instanceof Error ? error.message : '未知错误'}`;
+        }
+      }
+    };
+
+    return new DynamicTool(toolConfig);
+  }
 }
 
 /**
@@ -102,7 +181,8 @@ export const DEFAULT_TOOLS: ToolDefinition[] = [
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    isSystem: true
+    isSystem: true,
+    toolType: "structured"
   },
   {
     id: "current_time",
@@ -119,6 +199,7 @@ export const DEFAULT_TOOLS: ToolDefinition[] = [
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    isSystem: true
+    isSystem: true,
+    toolType: "dynamic"
   }
 ];
