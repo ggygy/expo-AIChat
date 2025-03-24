@@ -98,7 +98,6 @@ export default function PromptEditorDetailScreen() {
       <Stack.Screen 
         options={{ 
           title: i18n.t('explore.editTemplate'),
-          headerBackTitle: i18n.t('common.back')
         }} 
       />
       

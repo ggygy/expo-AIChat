@@ -12,7 +12,7 @@ import {
   FlatList,
   Pressable
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '../ui/IconSymbol';
 
 export interface ActionMenuItem {
   id: string;
@@ -180,8 +180,9 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}
               >
                 <View style={styles.menuItemContent}>
-                  <FontAwesome
-                    name={item.icon as any}
+                  <IconSymbol
+                    name={item.icon}
+                    type={'fontAwesome'}
                     size={20}
                     color={item.color || iconColor}
                     style={styles.menuItemIcon}

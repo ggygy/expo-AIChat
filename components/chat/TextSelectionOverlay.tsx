@@ -1,8 +1,10 @@
-import { View, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Modal, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { ThemedText } from '../ThemedText';
-import { FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '../ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '@/i18n/i18n';
+
 
 interface TextSelectionOverlayProps {
   visible: boolean;
@@ -23,58 +25,61 @@ const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
   const hasThinkingContent = thinkingContent && thinkingContent.trim().length > 0;
 
   return (
-    <Modal
-      visible={visible}
-      transparent={false}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-    <ScrollView style={[styles.container, { backgroundColor }]}>
-        <View style={[styles.header, { backgroundColor: headerBgColor }]}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <FontAwesome name="times" size={20} color={textColor} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>{i18n.t('chat.selectText')}</ThemedText>
-          <View style={styles.headerRight}></View>
-        </View>
-        
-        <View style={styles.contentContainer}>
-          {/* 思考内容，如果存在 */}
-          {hasThinkingContent && (
-            <View style={styles.section}>
-              <ThemedText style={styles.sectionTitle}>{i18n.t('chat.thinking')}</ThemedText>
-              <View style={styles.thinkingContainer}>
-                <ThemedText selectable={true} style={styles.textContent}>
-                  {thinkingContent}
-                </ThemedText>
-              </View>
-            </View>
-          )}
-          
-          {/* 主要内容 */}
-          <View style={styles.section}>
+    <SafeAreaView>
+      <Modal
+        visible={visible}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <ScrollView style={[styles.container, { backgroundColor }]}>
+          <View style={[styles.header, { backgroundColor: headerBgColor }]}>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <IconSymbol type='fontAwesome' name="times" size={20} color={textColor} />
+            </TouchableOpacity>
+            <ThemedText style={styles.headerTitle}>{i18n.t('chat.selectText')}</ThemedText>
+            <View style={styles.headerRight}></View>
+          </View>
+
+          <View style={styles.contentContainer}>
+            {/* 思考内容，如果存在 */}
             {hasThinkingContent && (
-              <ThemedText style={styles.sectionTitle}>{i18n.t('chat.answer')}</ThemedText>
+              <View style={styles.section}>
+                <ThemedText style={styles.sectionTitle}>{i18n.t('chat.thinking')}</ThemedText>
+                <View style={styles.thinkingContainer}>
+                  <ThemedText selectable={true} style={styles.textContent}>
+                    {thinkingContent}
+                  </ThemedText>
+                </View>
+              </View>
             )}
-            <ThemedText selectable={true} style={styles.textContent}>
-              {content}
+
+            {/* 主要内容 */}
+            <View style={styles.section}>
+              {hasThinkingContent && (
+                <ThemedText style={styles.sectionTitle}>{i18n.t('chat.answer')}</ThemedText>
+              )}
+              <ThemedText selectable={true} style={styles.textContent}>
+                {content}
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={[styles.footer, { backgroundColor: headerBgColor }]}>
+            <ThemedText style={styles.footerText}>
+              {i18n.t('chat.selectTextHint')}
             </ThemedText>
           </View>
-        </View>
-        
-        <View style={[styles.footer, { backgroundColor: headerBgColor }]}>
-          <ThemedText style={styles.footerText}>
-            {i18n.t('chat.selectTextHint')}
-          </ThemedText>
-        </View>
-      </ScrollView>
-    </Modal>
+        </ScrollView>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: Platform.OS === 'ios' ? 40 : 0,
   },
   header: {
     flexDirection: 'row',

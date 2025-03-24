@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '../ui/IconSymbol';
 import { ThemedText } from '../ThemedText';
 import i18n from '@/i18n/i18n';
 
@@ -24,7 +24,7 @@ const MessageStatusIndicator = memo(({
   if (status === 'error') {
     return (
       <View style={[styles.errorContainer, { borderColor: 'rgba(255, 0, 0, 0.1)' }]}>
-        <FontAwesome name="exclamation-circle" size={14} color={errorColor} style={styles.errorIcon} />
+        <IconSymbol type='fontAwesome' name="exclamation-circle" size={14} color={errorColor} style={styles.errorIcon} />
         <ThemedText style={[styles.errorText, { color: errorColor }]}>
           {errorMessage || i18n.t('chat.generateError')}
         </ThemedText>

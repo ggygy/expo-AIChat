@@ -21,14 +21,14 @@ const AddModelModal = ({ visible, onClose, onAdd }: Props) => {
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={[styles.header, { borderBottomColor: borderColor }]}>
           <TouchableOpacity style={styles.iconContainer} onPress={onClose}>
-            <IconSymbol name="arrow-back" size={28} color={textColor} />
+            <IconSymbol name="arrow-back" size={20} color={textColor} />
           </TouchableOpacity>
           <ThemedText style={styles.title}>{i18n.t('config.addNewModel')}</ThemedText>
           <View style={styles.backButton} />

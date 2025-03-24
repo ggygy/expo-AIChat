@@ -171,7 +171,7 @@ function ModelConfigModal({ providerId, visible, onClose }: Props) {
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={[styles.header, { borderBottomColor: borderColor }]}>
           <TouchableOpacity style={styles.iconContainer} onPress={onClose}>
-            <IconSymbol name="arrow-back" size={28} color={textColor} />
+            <IconSymbol name="arrow-back" size={20} color={textColor} />
           </TouchableOpacity>
           <ThemedText style={styles.title}>{provider.id}</ThemedText>
           <View style={styles.backButton} />

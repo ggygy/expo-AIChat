@@ -3,7 +3,7 @@ import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Message } from '@/constants/chat';
-import { FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '../ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { getMarkdownStyles } from '@/constants/MarkdownStyles';
@@ -140,7 +140,7 @@ const MessageCard: FC<MessageCardProps> = ({
                 {!isUser && selectable && (
                     <View style={[styles.checkbox, styles.centerVertically]}>
                         {showSelected ? (
-                            <FontAwesome name="check-circle" size={20} color={tintColor} />
+                            <IconSymbol name="check-circle" type='fontAwesome' size={20} color={tintColor} />
                         ) : (
                             <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
                         )}
@@ -215,7 +215,7 @@ const MessageCard: FC<MessageCardProps> = ({
                 {isUser && selectable && (
                     <View style={[styles.checkbox, styles.centerVertically]}>
                         {showSelected ? (
-                            <FontAwesome name="check-circle" size={20} color={tintColor} />
+                            <IconSymbol type='fontAwesome' name="check-circle" size={20} color={tintColor} />
                         ) : (
                             <View style={[styles.emptyCheckbox, { borderColor: tintColor }]} />
                         )}

@@ -9,18 +9,17 @@ import {
   LayoutAnimation,
   TouchableWithoutFeedback,
   View,
-  ActivityIndicator,
   Animated,
   Easing,
 } from 'react-native';
-import { Entypo, FontAwesome5 } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '../ThemedView';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { IconSymbol } from '../ui/IconSymbol';
 import i18n from '@/i18n/i18n';
+
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -155,8 +154,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
         ]}
         android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
       >
-        <FontAwesome5
+        <IconSymbol
           name={isVoiceMode ? 'keyboard' : 'microphone'}
+          type="fontAwesome5"
           size={20}
           color={iconColor}
         />
@@ -176,7 +176,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
             ]}
             android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
           >
-            <Entypo name="upload" size={20} color={iconColor} />
+            <IconSymbol 
+              name="upload" 
+              type="feather" 
+              size={20} 
+              color={iconColor} 
+            />
           </Pressable>
         )}
         
@@ -189,7 +194,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
             ]}
             android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
           >
-            <FontAwesome5 name="expand-alt" size={20} color={iconColor} />
+            <IconSymbol 
+              name="expand-alt" 
+              type="fontAwesome5" 
+              size={20} 
+              color={iconColor} 
+            />
           </Pressable>
         )}
 
@@ -203,7 +213,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
             ]}
             android_ripple={{color: inputColors.pressEffect || 'rgba(0, 0, 0, 0.1)', borderless: true, radius: 20}}
           >
-            <FontAwesome5 name="paper-plane" size={20} color={iconColor} />
+            <IconSymbol 
+              name="paper-plane" 
+              type="fontAwesome5" 
+              size={20} 
+              color={iconColor} 
+            />
           </Pressable>
         )}
       </>
@@ -250,8 +265,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
                         <Animated.View style={{
                           transform: [{ scale: pulseAnim }],
                         }}>
-                          <FontAwesome5 
+                          <IconSymbol 
                             name="microphone" 
+                            type="fontAwesome5"
                             size={22} 
                             color={accentColor}
                             style={styles.listeningIcon}
@@ -313,7 +329,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 20 : 0,
     left: 0,
     right: 0,
     zIndex: 999,

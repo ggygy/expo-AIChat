@@ -1,6 +1,7 @@
 export const zh = {
   common: {
     cancel: '取消',
+    back: 'Back',
     confirm: '确认',
     loading: '加载中...',
     error: '错误',

@@ -112,7 +112,7 @@ export default function ChatScreen() {
         manualRefresh,
         toggleSettings, // 传递优化后的切换函数
         showSettings,
-        headerHeight: Platform.OS === 'ios' ? 58 : 70
+        headerHeight: Platform.OS === 'ios' ? 80 : 70
     });
 
     // 监控消息状态，不再需要基于消息长度自动滚动
@@ -221,7 +221,7 @@ export default function ChatScreen() {
                     styles.safeArea, 
                     { 
                         backgroundColor,
-                        marginTop: Platform.OS === 'ios' ? headerHeight + 14 : headerHeight + 20
+                        marginTop: Platform.OS === 'ios' ? headerHeight + 5 : headerHeight + 20
                     }
                 ]}>
                     <View style={[styles.messageListContainer, { backgroundColor }]}>

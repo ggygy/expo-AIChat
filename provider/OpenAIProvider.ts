@@ -60,9 +60,4 @@ export const OpenAIModels: ModelInfo[] = [
     name: 'GPT o1 Mini',
     types: ['chat']
   },
-  {
-    id: 'o1-mini',
-    name: 'GPT o1 Mini',
-    types: ['chat']
-  }
 ]

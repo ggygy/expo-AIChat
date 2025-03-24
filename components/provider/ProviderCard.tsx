@@ -59,7 +59,7 @@ function ProviderCard({
               <ThemedText style={[styles.description, { color: linkColor }]}>
                 {i18n.t('config.getApiKey')}
               </ThemedText>
-              <IconSymbol name="chevron-right" size={16} color={linkColor} />
+              <IconSymbol name="chevron-right" size={15} color={linkColor} />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={confirmDelete} style={styles.deleteButton} activeOpacity={0.6}>
@@ -73,7 +73,6 @@ function ProviderCard({
           style={styles.configButton}
           variant="secondary"
           hapticFeedback={true}
-          activeOpacity={0.7}
         >
           {i18n.t('config.configureModels')}
         </Button>
@@ -82,7 +81,6 @@ function ProviderCard({
           style={[styles.button, provider.isActive && styles.activeButton]}
           variant={'primary'}
           hapticFeedback={true}
-          activeOpacity={0.7}
         >
           {provider.isActive ? i18n.t('config.active') : i18n.t('config.activate')}
         </Button>

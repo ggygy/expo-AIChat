@@ -1,6 +1,7 @@
 export const en = {
   common: {
     cancel: 'Cancel',
+    back: 'Back',
     confirm: 'Confirm',
     loading: 'Loading...',
     error: 'Error',

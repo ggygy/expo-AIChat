@@ -153,7 +153,6 @@ export default function ToolEditorDetailScreen() {
       <Stack.Screen 
         options={{ 
           title: i18n.t('explore.editTool'),
-          headerBackTitle: i18n.t('common.back')
         }} 
       />
       

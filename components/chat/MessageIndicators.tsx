@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, View, ActivityIndicator, Pressable } from 'react-native';
-import { FontAwesome, Feather } from '@expo/vector-icons';
+import { IconSymbol } from '../ui/IconSymbol';
 
 /**
  * 消息列表指示器组件 - 统一处理所有指示器和按钮
@@ -38,7 +38,7 @@ const MessageIndicators = ({
           onPress={onScrollToBottom}
           hitSlop={10}
         >
-          <Feather name="arrow-down" size={18} color="#FFFFFF" />
+          <IconSymbol type='feather' name="arrow-down" size={18} color="#FFFFFF" />
         </Pressable>
       )}
       
@@ -50,7 +50,7 @@ const MessageIndicators = ({
             onPress={onStopGeneration}
             hitSlop={20}
           >
-            <FontAwesome name="stop-circle" size={24} color={iconColor} />
+            <IconSymbol type='fontAwesome' name="stop-circle" size={24} color={iconColor} />
           </Pressable>
         </View>
       )}

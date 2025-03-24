@@ -16,7 +16,7 @@ interface ToolsTabProps {
 
 export function ToolsTab({ onNavigateToEditor }: ToolsTabProps) {
   const { tools } = useToolStore();
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme(); 
   
   // 使用主题色 - 确保卡片颜色与背景有区别
   const backgroundColor = useThemeColor({}, 'background');

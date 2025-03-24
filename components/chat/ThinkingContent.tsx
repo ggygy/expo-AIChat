@@ -1,9 +1,9 @@
 import React, { memo, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
 import { ThemedText } from '../ThemedText';
 import OptimizedMarkdown from '@/components/markdown/OptimizedMarkdown';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { IconSymbol } from '../ui/IconSymbol';
 
 interface ThinkingContentProps {
   thinkingContent: string;
@@ -50,7 +50,8 @@ const ThinkingContent: React.FC<ThinkingContentProps> = ({
         >
           思考过程
         </ThemedText>
-        <FontAwesome 
+        <IconSymbol
+          type='fontAwesome'
           name={isExpanded ? 'angle-up' : 'angle-down'} 
           size={16} 
           color={iconColor} 

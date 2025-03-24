@@ -1,4 +1,4 @@
-import { StyleSheet, FlatList } from 'react-native';
+import { StyleSheet, FlatList, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import i18n from '@/i18n/i18n';
@@ -15,6 +15,7 @@ import BotCard from '@/components/bot/BotCard';
 import { useLanguageStore } from '@/store/useLanguageStore';
 import { messageDb } from '@/database';
 import { showError, showSuccess } from '@/utils/toast';
+import React from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
+    bottom: Platform.OS === 'ios' ? 60 :  16,
     borderRadius: 10,
     paddingHorizontal: 20,
   },

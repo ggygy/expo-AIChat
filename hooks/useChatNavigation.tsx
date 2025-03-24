@@ -1,7 +1,7 @@
 import { useLayoutEffect } from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
-import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { StyleSheet } from 'react-native';
 import i18n from '@/i18n/i18n';
 
@@ -68,7 +68,7 @@ export function useChatNavigation({
               android_ripple={{ color: 'rgba(255, 0, 0, 0.2)', borderless: true, radius: 20 }}
               hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome5 name="trash" size={20} color={errorColor} pointerEvents="box-none"/>
+              <IconSymbol type='fontAwesome5' name="trash" size={20} color={errorColor} />
             </Pressable>
           </View>
         ) : (
@@ -84,11 +84,11 @@ export function useChatNavigation({
                 android_ripple={{ color: 'rgba(33, 150, 243, 0.2)', borderless: true, radius: 20 }}
                 hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
               >
-                <FontAwesome5 
+                <IconSymbol 
                   name="cog" 
                   size={21} 
+                  type='fontAwesome5'
                   color={showSettings ? '#2196F3' : iconColor}
-                  pointerEvents="box-none"
                 />
               </Pressable>
             )}
@@ -101,7 +101,7 @@ export function useChatNavigation({
               android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
               hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome name="refresh" size={21} color={iconColor} pointerEvents="box-none"/>
+              <IconSymbol type='fontAwesome' name="refresh" size={21} color={iconColor} />
             </Pressable>
             <Pressable
               onPressIn={() => router.push(`/editBot/${botId}`)}
@@ -112,7 +112,7 @@ export function useChatNavigation({
               android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
               hitSlop={{ top: 15, bottom: 15, left: 10, right: 10 }}
             >
-              <FontAwesome name="navicon" size={21} color={iconColor} pointerEvents="box-none"/>
+              <IconSymbol type='fontAwesome' name="navicon" size={21} color={iconColor} />
             </Pressable>
           </View>
         )
@@ -135,7 +135,7 @@ export function useChatNavigation({
               android_ripple={{ color: 'rgba(0, 0, 0, 0.2)', borderless: true, radius: 20 }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <FontAwesome5 name="times" size={21} color={iconColor} />
+              <IconSymbol type='fontAwesome5' name="times" size={21} color={iconColor} />
             </Pressable>
           </View>
         ) : undefined

@@ -4,7 +4,7 @@ import {
   Platform, LayoutAnimation, UIManager, PanResponder, GestureResponderEvent 
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { FontAwesome } from '@expo/vector-icons';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { showSuccess } from '@/utils/toast';
 import i18n from '@/i18n/i18n';
@@ -120,7 +120,8 @@ const CodeBlock = ({ literal, language }: Props) => {
         ]}
       >
         <View style={styles.headerLeft}>
-          <FontAwesome
+          <IconSymbol
+            type='fontAwesome'
             name={collapsed ? "chevron-right" : "chevron-down"}
             size={12}
             color={isDark ? '#8b949e' : '#57606a'}
@@ -148,7 +149,8 @@ const CodeBlock = ({ literal, language }: Props) => {
           style={styles.copyButton}
           activeOpacity={0.7}
         >
-          <FontAwesome
+          <IconSymbol
+            type='fontAwesome'
             name={copied ? "check" : "clipboard"}
             size={14}
             color={copied ? "#4CAF50" : isDark ? "#8b949e" : "#57606a"}
@@ -192,7 +194,8 @@ const CodeBlock = ({ literal, language }: Props) => {
               onPress={scrollLeft}
               activeOpacity={0.7}
             >
-              <FontAwesome 
+              <IconSymbol
+                type='fontAwesome' 
                 name="chevron-left" 
                 size={16} 
                 color={isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)'}
@@ -211,7 +214,8 @@ const CodeBlock = ({ literal, language }: Props) => {
               onPress={scrollRight}
               activeOpacity={0.7}
             >
-              <FontAwesome 
+              <IconSymbol
+                type='fontAwesome'
                 name="chevron-right" 
                 size={16} 
                 color={isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)'}

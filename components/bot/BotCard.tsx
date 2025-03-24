@@ -1,14 +1,15 @@
 import React, { memo } from 'react';
 import { StyleSheet, Animated, Platform, useColorScheme, View } from 'react-native';
 import { Swipeable, TouchableOpacity } from 'react-native-gesture-handler';
-import { FontAwesome } from '@expo/vector-icons';
 import { ThemedText } from '../ThemedText';
 import { ThemedView } from '../ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { getProviderIcon, type IconNames } from '@/constants/IconType';
 import { ModelProviderId } from '@/constants/ModelProviders';
+import { IconSymbol } from '../ui/IconSymbol';
 import CustomIcon from '../ui/CustomIcon';
 import i18n from '@/i18n/i18n';
+
 
 export type BotCardProps = {
   id: string;
@@ -63,7 +64,7 @@ const BotCard: React.FC<BotCardProps> = ({
           ]}
         >
           <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
-            <FontAwesome name="gear" size={24} color="white" />
+            <IconSymbol name="gear" type="symbol" size={22} color="white" />
             <ThemedText style={styles.actionText}>
               {i18n.t('bot.edit')}
             </ThemedText>
@@ -95,9 +96,9 @@ const BotCard: React.FC<BotCardProps> = ({
           ]}
         >
           <TouchableOpacity onPress={onDelete} style={styles.actionButton}>
-            <FontAwesome name="trash" size={24} color="white" />
+            <IconSymbol name="trash" type="symbol" size={22} color="white" />
             <ThemedText style={styles.actionText}>
-              {i18n.t('bot.delete')}
+              {i18n.t('bot.delete')} 
             </ThemedText>
           </TouchableOpacity>
         </Animated.View>
