@@ -84,7 +84,7 @@ export function useChatMessages(chatId: string) {
     
     // 节流控制: 如果距离上次加载不足1秒，则不执行
     const currentTime = Date.now();
-    if (currentTime - lastLoadTimestampRef.current < 1000) {
+    if (currentTime - lastLoadTimestampRef.current < 100) {
       console.log('加载节流: 上次加载时间太近');
       return false;
     }

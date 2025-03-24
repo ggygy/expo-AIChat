@@ -213,6 +213,7 @@ export default function ChatScreen() {
         <SafeAreaProvider>
             <KeyboardAvoidingView 
                 style={{ flex: 1 }}
+                enabled={keyboardVisible}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight + 14 : 0}
             >

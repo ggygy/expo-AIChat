@@ -60,7 +60,7 @@ export function useChatNavigation({
         isSelectMode ? (
           <View style={styles.headerElementContainer}>
             <Pressable
-              onPress={() => setShowDeleteDialog(true)}
+              onPressIn={() => setShowDeleteDialog(true)}
               style={({ pressed }) => [
                 styles.headerButton,
                 pressed && styles.headerButtonPressed
@@ -76,7 +76,7 @@ export function useChatNavigation({
             {/* 添加设置按钮 */}
             {toggleSettings && (
               <Pressable
-                onPress={toggleSettings}
+                onPressIn={toggleSettings}
                 style={({ pressed }) => [
                   styles.headerButton,
                   pressed && styles.headerButtonPressed
@@ -93,7 +93,7 @@ export function useChatNavigation({
               </Pressable>
             )}
             <Pressable
-              onPress={manualRefresh}
+              onPressIn={manualRefresh}
               style={({ pressed }) => [
                 styles.headerButton,
                 pressed && styles.headerButtonPressed
@@ -104,7 +104,7 @@ export function useChatNavigation({
               <FontAwesome name="refresh" size={21} color={iconColor} pointerEvents="box-none"/>
             </Pressable>
             <Pressable
-              onPress={() => router.push(`/editBot/${botId}`)}
+              onPressIn={() => router.push(`/editBot/${botId}`)}
               style={({ pressed }) => [
                 styles.headerButton,
                 pressed && styles.headerButtonPressed
@@ -127,7 +127,7 @@ export function useChatNavigation({
         isSelectMode ? (
           <View style={styles.headerElementContainer}>
             <Pressable
-              onPress={handleCancelSelect}
+              onPressIn={handleCancelSelect}
               style={({ pressed }) => [
                 styles.headerButton,
                 pressed && styles.headerButtonPressed

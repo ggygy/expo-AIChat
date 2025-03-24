@@ -1,4 +1,4 @@
-import React, { FC, memo, useEffect, useRef } from 'react';
+import React, { FC, memo, useEffect, useRef, useState, useCallback } from 'react';
 import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -45,6 +45,23 @@ const MessageCard: FC<MessageCardProps> = ({
     const tintColor = useThemeColor({}, 'tint');
     const isUser = message.role === 'user';
     const isNormalContent = message.contentType === 'markdown' || message.contentType === 'text';
+    
+    // 添加展开/折叠状态管理
+    const [thinkingExpanded, setThinkingExpanded] = useState(
+      isStreaming ? true : message.isThinkingExpanded ?? false
+    );
+    
+    // 当流式传输停止时保持展开状态
+    useEffect(() => {
+      if (isStreaming) {
+        setThinkingExpanded(true);
+      }
+    }, [isStreaming]);
+    
+    // 处理思考内容展开/折叠状态变化
+    const handleThinkingToggle = useCallback((expanded: boolean) => {
+      setThinkingExpanded(expanded);
+    }, []);
     
     // 使用自定义Hook处理消息操作
     const { 
@@ -99,6 +116,11 @@ const MessageCard: FC<MessageCardProps> = ({
       return cleanup;
     }, []);
 
+
+    const showContent = Boolean(message && (message.content || message.thinkingContent));
+    const hasThinkingContent = Boolean(message && message.thinkingContent && message.thinkingContent.trim() !== '');
+    const hasContent = Boolean(message && message.content);
+
     return (
         <View style={styles.messageCardWrapper}>
             <TouchableOpacity
@@ -140,35 +162,36 @@ const MessageCard: FC<MessageCardProps> = ({
                 ]}>
                     <View style={styles.contentContainer}>
                         {/* 消息内容区 - 直接使用message内容，不缓存 */}
-                        {(message.content || message.thinkingContent) ? (
+                        {showContent ? (
                             isUser ? (
                                 /* 用户消息总是使用普通文本，添加可选择特性 */
                                 <ThemedText style={styles.messageText} selectable={true}>
-                                    {message.content}
+                                    {message.content || ''}
                                 </ThemedText>
                             ) : (
                                 /* AI助手消息 */
                                 <View style={styles.contentContainer}>
                                     {/* 思考内容检查 - 确保思考内容不为空且非undefined */}
-                                    {message.thinkingContent && message.thinkingContent.trim() !== '' && (
+                                    {hasThinkingContent && (
                                         <ThinkingContent
-                                            thinkingContent={message.thinkingContent}
+                                            thinkingContent={message.thinkingContent || ''}
                                             thinkingMarkdownStyles={thinkingMarkdownStyles}
                                             thinkingBgColor={colors.thinkingBg || '#f5f5f5'}
                                             thinkingTextColor={colors.thinkingText || '#666'}
-                                            initialIsExpanded={isStreaming ? true : message.isThinkingExpanded}
+                                            isExpanded={thinkingExpanded}
+                                            onToggle={handleThinkingToggle}
                                         />
                                     )}
                                     
                                     {/* 正常回答内容的分隔线 - 仅当两种内容都存在时显示 */}
-                                    {message.content && message.thinkingContent && message.thinkingContent.trim() !== '' && (
+                                    {hasContent && hasThinkingContent && (
                                         <View style={styles.contentDivider} />
                                     )}
                                     
                                     {/* 正常回答内容 */}
-                                    {message.content && isNormalContent && (
+                                    {hasContent && isNormalContent && (
                                         <NormalContent
-                                            content={message.content}
+                                            content={message.content || ''}
                                             contentType={message.contentType || 'markdown' as any}
                                             markdownStyles={markdownStyles}
                                             isStreaming={isStreaming}
@@ -358,26 +381,31 @@ const styles = StyleSheet.create({
     },
 });
 
+// 优化 memo 比较逻辑，添加安全检查
 export default memo(MessageCard, (prevProps, nextProps) => {
-  // 优化比较函数 - 更精细的控制重渲染条件
-  
   // 流式消息需要更频繁更新，而非流式消息可以少更新
   const isStreaming = nextProps.isStreaming;
+  
+  // 安全检查
+  if (!prevProps.message || !nextProps.message) {
+    return false; // 如果任一 message 为 undefined，则强制重新渲染
+  }
   
   // 判断内容变化
   const isSameContent = prevProps.message.content === nextProps.message.content;
   const isSameThinking = prevProps.message.thinkingContent === nextProps.message.thinkingContent;
   
   // 对于流式消息，使用更低的阈值，确保更频繁更新
-  const contentThreshold = isStreaming ? 25 : 50;
+  const contentThreshold = isStreaming ? 25 : 100;
   
   const contentSimilar = !isSameContent && 
-    prevProps.message.content.length > 0 && 
-    nextProps.message.content.length > 0 && 
-    Math.abs(prevProps.message.content.length - nextProps.message.content.length) < contentThreshold;
+    (prevProps.message.content?.length ?? 0) > 0 && 
+    (nextProps.message.content?.length ?? 0) > 0 && 
+    Math.abs((prevProps.message.content?.length ?? 0) - (nextProps.message.content?.length ?? 0)) < contentThreshold;
   
-  const thinkingSimilar = !isSameThinking && Math.abs((prevProps.message.thinkingContent?.length || 0) - 
-      (nextProps.message.thinkingContent?.length || 0)) < contentThreshold;
+  const thinkingSimilar = !isSameThinking && 
+    Math.abs((prevProps.message.thinkingContent?.length ?? 0) - 
+    (nextProps.message.thinkingContent?.length ?? 0)) < contentThreshold;
   
   // 其他状态比较
   const isSameStatus = prevProps.message.status === nextProps.message.status;
@@ -394,6 +422,9 @@ export default memo(MessageCard, (prevProps, nextProps) => {
   }
   
   // 非流式消息，采用更严格的优化策略
-  return (isSameContent || contentSimilar) && (isSameThinking || thinkingSimilar) && 
-         isSameStatus && isSameSelection && isSameStreaming;
+  return (isSameContent || contentSimilar) && 
+         (isSameThinking || thinkingSimilar) && 
+         isSameStatus && 
+         isSameSelection && 
+         isSameStreaming;
 });

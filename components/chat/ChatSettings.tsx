@@ -143,6 +143,32 @@ const ChatSettings: React.FC<ChatSettingsProps> = ({ botId, onClose }) => {
     return targetLevel;
   };
   
+  // 添加一个状态标记是否处于将要收起的状态
+  const isClosing = useRef(false);
+
+  // 添加一个当前实际档位的引用，不依赖状态更新
+  const currentLevelRef = useRef<keyof typeof HEIGHT_LEVELS>('NORMAL');
+
+  // 添加调试日志观察档位变化
+  useEffect(() => {
+    // 同步更新引用值
+    currentLevelRef.current = currentLevel;
+  }, [currentLevel]);
+
+  // 实时计算当前档位，不依赖状态
+  const calculateCurrentLevel = (height: number): keyof typeof HEIGHT_LEVELS => {
+    // 考虑到边界情况，增加一些容差
+    const threshold = 20; // 容差值
+    
+    if (height <= HEIGHT_LEVELS.COMPACT + threshold) {
+      return 'COMPACT';
+    } else if (height <= HEIGHT_LEVELS.NORMAL + threshold) {
+      return 'NORMAL';
+    } else {
+      return 'EXPANDED';
+    }
+  };
+
   // 处理拖动手势
   const panResponder = useRef(
     PanResponder.create({
@@ -153,7 +179,8 @@ const ChatSettings: React.FC<ChatSettingsProps> = ({ botId, onClose }) => {
       },
       
       onPanResponderGrant: (_, gestureState) => {
-        // 开始拖动
+        // 开始拖动时重置收起状态
+        isClosing.current = false;
         setIsDragging(true);
         Keyboard.dismiss(); // 确保键盘被关闭
         panStartY.current = gestureState.y0;
@@ -167,41 +194,55 @@ const ChatSettings: React.FC<ChatSettingsProps> = ({ botId, onClose }) => {
       onPanResponderMove: (_, gestureState) => {
         const deltaY = gestureState.moveY - panStartY.current;
         dragDistance.current = deltaY;
+
+        // 先计算新高度
+        const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, lastHeight.current - deltaY));
         
-        // 判断是否处于最低挡位且正在下拉
-        if (currentLevel === 'COMPACT' && deltaY > 0) {
-          // 根据下拉距离计算面板透明度和背景透明度
-          const panelOpacity = Math.max(0.5, 1 - (deltaY / 200));
-          const bgOpacity = Math.max(0.1, 1 - (deltaY / 300));
+        // 计算当前实际档位，不依赖状态
+        const realLevel = calculateCurrentLevel(newHeight);
+        
+        // 强制更新引用中的档位值，不等待状态更新
+        currentLevelRef.current = realLevel;
+
+        // 使用引用中的档位值判断，不依赖状态
+        if (realLevel === 'COMPACT' && deltaY > 12) {
+          // 根据下拉距离判断是否要进入收起状态
+          if (deltaY > DISMISS_THRESHOLD || gestureState.vy > 1.0) {
+            isClosing.current = true;
+          } else {
+            isClosing.current = false;
+          }
+
+          // 更新高度动画
+          heightAnim.setValue(newHeight);
           
-          // 原生动画属性
-          translateYAnim.setValue(Math.min(deltaY / 2, 100));
+          // 根据下拉距离计算面板透明度和背景透明度
+          const panelOpacity = Math.max(0.3, 1 - (deltaY / 200));
+          const bgOpacity = Math.max(0.1, 1 - (deltaY / 300));
+          const translateY = Math.min(deltaY / 1.5, 150); // 让位移更明显
+          
+          // 原生动画属性 - 确保值正确应用
+          translateYAnim.setValue(translateY);
           opacityAnim.setValue(panelOpacity);
           overlayOpacity.setValue(bgOpacity);
           
-          return;
+          // 更新状态的档位
+          if (currentLevel !== realLevel) {
+            setCurrentLevel(realLevel);
+          }
+          
+          return;  // 重要：在这种情况下提前返回，不执行后续代码
         }
+        
+        // 重置收起状态
+        isClosing.current = false;
         
         // 正常拖动 - JS动画更新高度
-        const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, lastHeight.current - deltaY));
         heightAnim.setValue(newHeight);
         
-        // 实时更新最接近的档位
-        const compactDiff = Math.abs(newHeight - HEIGHT_LEVELS.COMPACT);
-        const normalDiff = Math.abs(newHeight - HEIGHT_LEVELS.NORMAL);
-        const expandedDiff = Math.abs(newHeight - HEIGHT_LEVELS.EXPANDED);
-        
-        let closestLevel: keyof typeof HEIGHT_LEVELS;
-        if (compactDiff <= normalDiff && compactDiff <= expandedDiff) {
-          closestLevel = 'COMPACT';
-        } else if (normalDiff <= compactDiff && normalDiff <= expandedDiff) {
-          closestLevel = 'NORMAL';
-        } else {
-          closestLevel = 'EXPANDED';
-        }
-        
-        if (closestLevel !== currentLevel) {
-          setCurrentLevel(closestLevel);
+        // 更新状态的档位
+        if (currentLevel !== realLevel) {
+          setCurrentLevel(realLevel);
         }
       },
       
@@ -209,27 +250,85 @@ const ChatSettings: React.FC<ChatSettingsProps> = ({ botId, onClose }) => {
         // 结束拖动
         setIsDragging(false);
         
-        // 重置动画值
+        const deltaY = gestureState.moveY - panStartY.current;
+        const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, lastHeight.current - deltaY));
+        
+        // 使用引用中的值，因为它会被onPanResponderMove实时更新
+        const realLevel = currentLevelRef.current;
+        // 如果标记为将要收起，执行收起动画
+        if (isClosing.current) {
+          Animated.parallel([
+            Animated.timing(translateYAnim, {
+              toValue: SCREEN_HEIGHT / 3,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(overlayOpacity, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            })
+          ]).start(() => {
+            // 动画结束后才真正关闭
+            onClose?.();
+          });
+          return;
+        }
+        
+        // 当前是COMPACT档位并且有向下拖动，但不满足收起条件
+        if (realLevel === 'COMPACT' && deltaY > 0) {
+          Animated.parallel([
+            Animated.spring(translateYAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 8
+            }),
+            Animated.spring(opacityAnim, {
+              toValue: 1,
+              useNativeDriver: true,
+              bounciness: 8
+            }),
+            Animated.spring(overlayOpacity, {
+              toValue: 1,
+              useNativeDriver: true,
+              bounciness: 8
+            })
+          ]).start();
+          
+          // 确保高度设置正确
+          Animated.spring(heightAnim, {
+            toValue: HEIGHT_LEVELS.COMPACT,
+            useNativeDriver: false,
+            bounciness: 0,
+            speed: 12
+          }).start();
+          
+          lastHeight.current = HEIGHT_LEVELS.COMPACT;
+          return;
+        }
+        
+        // 重置动画值 - 对于非COMPACT档位
         translateYAnim.setValue(0);
         opacityAnim.setValue(1);
         overlayOpacity.setValue(1);
         
-        // 判断是否需要关闭面板
-        // 条件1: 在最低档位下滑超过阈值
-        if (currentLevel === 'COMPACT' && dragDistance.current > DISMISS_THRESHOLD) {
-          onClose?.();
-          return;
+        // 如果是向下拖动较大距离或快速下滑
+        if (deltaY > 50 || gestureState.vy > 0.5) {
+          if (currentLevel === 'EXPANDED') {
+            // 从第三档位向下拖，切换到第二档位
+            toggleLevel('NORMAL');
+            return;
+          } else if (currentLevel === 'NORMAL') {
+            // 从第二档位向下拖，切换到第一档位
+            toggleLevel('COMPACT');
+            return;
+          }
         }
-        
-        // 条件2: 快速下滑或大幅度下滑
-        if (gestureState.vy > 2 || (gestureState.vy > 0.5 && gestureState.dy > 100)) {
-          onClose?.();
-          return;
-        }
-        
-        // 正常情况：平滑过渡到最接近的档位
-        const deltaY = gestureState.moveY - panStartY.current;
-        const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, lastHeight.current - deltaY));
         
         animateLayout();
         const finalLevel = snapToLevel(newHeight, gestureState.vy);
@@ -248,6 +347,7 @@ const ChatSettings: React.FC<ChatSettingsProps> = ({ botId, onClose }) => {
       onPanResponderTerminate: () => {
         // 拖动被中断
         setIsDragging(false);
+        isClosing.current = false;
         translateYAnim.setValue(0);
         opacityAnim.setValue(1);
         overlayOpacity.setValue(1);

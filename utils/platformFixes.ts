@@ -41,12 +41,10 @@ export function isLowPerformanceDevice(): boolean {
 export function getPlatformOptimizedFlashListProps() {
   // 基础配置
   const baseProps = {
-    estimatedItemSize: 100, // 估算每个项目的平均高度
+    estimatedItemSize: 300, // 估算每个项目的平均高度
     removeClippedSubviews: true, // 移除不在可视区域内的视图
     initialNumToRender: 10, // 初始渲染的项目数量
     maxToRenderPerBatch: 10, // 批量渲染的最大项目数量
-    windowSize: 5, // 窗口大小
-    // 添加正确类型的 maintainVisibleContentPosition
     maintainVisibleContentPosition: {
       minIndexForVisible: 0,
       autoscrollToTopThreshold: 10 // 使用数值而非null

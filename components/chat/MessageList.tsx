@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, useWindowDimensions } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Message } from '@/constants/chat';
 import MessageCard from './MessageCard';
@@ -57,6 +57,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   const [isPreloading, setIsPreloading] = useState(false);
   const iconColor = useThemeColor({}, 'text');
   const listRef = useRef<FlashList<Message>>(null);
+  const windowDimensions = useWindowDimensions();
   
   // 使用消息操作Hook
   const {
@@ -128,7 +129,53 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     updateStreamingMessageId(messages);
   }, [messages, updateStreamingMessageId]);
   
-  const renderMessage = useCallback(({ item }: { item: Message }) => {
+  // 优化FlashList性能配置
+  const flashListProps = useMemo(() => {
+    const platformProps = getPlatformOptimizedFlashListProps();
+    return {
+      // 估计项目大小 - 增加估计值以减少测量频率
+      estimatedItemSize: 150,
+      
+      // 禁用视图回收，这有助于防止快速滚动时的黑屏
+      removeClippedSubviews: false,
+      
+      // 保持可见内容位置，提高滚动体验
+      maintainVisibleContentPosition: {
+        minIndexForVisible: 0,
+        autoscrollToTopThreshold: 10
+      },
+      
+      // 增加绘制距离，提前渲染更多内容防止黑屏
+      drawDistance: windowDimensions.height * 2,
+      
+      // 提供列表尺寸估计，减少初始测量时间
+      estimatedListSize: { 
+        width: windowDimensions.width, 
+        height: windowDimensions.height 
+      },
+      
+      // 禁用水平列表高度测量，进一步优化性能
+      disableHorizontalListHeightMeasurement: true,
+    };
+  }, [windowDimensions.width, windowDimensions.height]);
+  
+  // 优化渲染项目函数 - 支持测量目标和类型区分
+  const renderMessage = useCallback(({ item, index, target }: { 
+    item: Message, 
+    index: number, 
+    target?: "Cell" | "StickyHeader" | "Measurement" 
+  }) => {
+    // 如果是测量阶段，返回简化版本以提高性能
+    if (target === "Measurement") {
+      return <View style={{ height: 150 }} />;
+    }
+    
+    // 确保item存在
+    if (!item) {
+      console.warn('Rendering null item at index', index);
+      return <View style={{ height: 150 }} />;
+    }
+    
     const isStreamingMessage = item.id === streamingMessageIdRef.current;
     
     return (
@@ -137,15 +184,43 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         onRetry={item.status === 'error' ? () => onRetry?.(item.id) : undefined}
         onEnterSelectMode={() => handleEnterSelectMode(item)}
         onPress={() => isSelectMode && handleSelect(item)}
-        isSelected={selectedMessages.has(item.id)}
+        isSelected={selectedMessages.has(item.id || '')}
         selectable={isSelectMode}
         onDeleteMessage={handleDeleteSingleMessage}
-        key={item.id}
+        key={item.id || `item-${index}`}
         isStreaming={isStreamingMessage}
       />
     );
-  }, [onRetry, handleSelect, selectedMessagesStr, isSelectMode, handleEnterSelectMode, streamingMessageIdRef.current, handleDeleteSingleMessage]);
+  }, [onRetry, handleSelect, selectedMessagesStr, isSelectMode, handleEnterSelectMode, 
+      streamingMessageIdRef.current, handleDeleteSingleMessage]);
   
+  // 添加类型检测函数 - 帮助FlashList优化重用
+  const getItemType = useCallback((item: Message) => {
+    if (!item) return 'unknown';
+    return item.role === 'user' ? 'user' : 'assistant';
+  }, []);
+  
+  // 提供布局覆盖函数 - 优化尺寸估计
+  const overrideItemLayout = useCallback((layout: {span?: number, size?: number}, item: Message, index: number) => {
+    if (!item) return;
+    
+    // 根据消息内容长度和类型估算大小
+    const estimatedHeight = item.role === 'user' 
+      ? 80 + Math.min(300, (item.content?.length || 0) * 0.1) 
+      : 120 + Math.min(500, ((item.content?.length || 0) + (item.thinkingContent?.length || 0)) * 0.15);
+    
+    layout.size = Math.max(100, estimatedHeight);
+  }, []);
+  
+  // 反转消息列表以便最新消息在底部展示
+  const reversedMessages = useMemo(() => {
+    if (!messages || !Array.isArray(messages)) {
+      console.warn('messages is not an array');
+      return [];
+    }
+    return [...messages].reverse(); // 创建副本并反转，避免修改原始数据
+  }, [messages]);
+
   // 处理布局事件，初次布局后滚动到底部（对于反转列表是顶部）
   const handleListLayout = useCallback((event: any) => {
     if (isFirstLayoutRef.current && listRef.current && messages.length > 0) {
@@ -194,26 +269,6 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
     }
   }, [messages.length, shouldScrollToBottom]);
   
-  // 优化FlashList性能配置
-  const flashListProps = useMemo(() => {
-    const platformProps = getPlatformOptimizedFlashListProps();
-    return {
-      estimatedItemSize: platformProps.estimatedItemSize || 100,
-      removeClippedSubviews: platformProps.removeClippedSubviews !== undefined ? 
-        platformProps.removeClippedSubviews : true,
-      maintainVisibleContentPosition: {
-        // 这些设置对于保持滚动位置很重要
-        minIndexForVisible: 0,
-        autoscrollToTopThreshold: 0
-      },
-    };
-  }, []);
-  
-  // 反转消息列表以便最新消息在底部展示
-  const reversedMessages = useMemo(() => {
-    return [...messages].reverse(); // 创建副本并反转，避免修改原始数据
-  }, [messages]);
-
   // 处理滚动到底部按钮点击事件
   const handleScrollToBottomPress = useCallback(() => {
     if (setShouldScrollToBottom) {
@@ -224,7 +279,7 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   
   return (
     <View style={styles.container}>
-      {hasLoadedAllMessages?.() && messages.length > 0 && (
+      {hasLoadedAllMessages?.() && messages && messages.length > 0 && (
         <View style={styles.allMessagesLoadedIndicator}>
           <Text style={styles.allMessagesLoadedText}>{i18n.t('chat.allMessagesLoaded')}</Text>
         </View>
@@ -232,13 +287,24 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       
       <FlashList
         ref={listRef}
-        data={reversedMessages} // 使用反转后的消息
+        data={reversedMessages}
         renderItem={renderMessage}
-        inverted={true} // 反转列表渲染
+        inverted={true}
+        
+        // 基本配置
         estimatedItemSize={flashListProps.estimatedItemSize}
         removeClippedSubviews={flashListProps.removeClippedSubviews}
-        onEndReached={onLoadMore} // 当滚动到列表末尾时触发加载更多
-        onEndReachedThreshold={0.5} // 当距离末尾50%时触发
+        estimatedListSize={flashListProps.estimatedListSize}
+        
+        // 高级渲染优化
+        drawDistance={flashListProps.drawDistance}
+        disableHorizontalListHeightMeasurement={flashListProps.disableHorizontalListHeightMeasurement}
+        getItemType={getItemType}
+        overrideItemLayout={overrideItemLayout}
+        
+        // 滚动优化
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={true}
         onLayout={handleListLayout}
         contentContainerStyle={{
@@ -247,12 +313,12 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
           paddingBottom: 40
         }}
         extraData={selectedMessagesStr}
-        keyExtractor={(item) => item.id || `item-${item.timestamp}`}
+        keyExtractor={(item) => item?.id || `item-${item?.timestamp || Math.random()}`}
         onScroll={handleScroll}
         maintainVisibleContentPosition={flashListProps.maintainVisibleContentPosition}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16} // 提高滚动事件频率以便更准确地检测
+        scrollEventThrottle={16}
         overScrollMode="never"
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEndDrag}
