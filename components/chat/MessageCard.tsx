@@ -1,5 +1,5 @@
 import React, { FC, memo, useEffect, useRef, useState, useCallback } from 'react';
-import { StyleSheet, View, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Platform, type ViewStyle } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Message } from '@/constants/chat';
@@ -13,6 +13,7 @@ import NormalContent from './NormalContent';
 import MessageStatusIndicator from './MessageStatusIndicator';
 import ActionMenu from './ActionMenu';
 import TextSelectionOverlay from './TextSelectionOverlay';
+import MetadataSection from './MetadataSection';
 
 interface MessageCardProps {
     message: Message;
@@ -23,21 +24,21 @@ interface MessageCardProps {
     selectable?: boolean;
     onEnterSelectMode?: () => void;
     onDeleteMessage?: (messageId: string) => void;
-    // 添加流式消息标记
     isStreaming?: boolean;
+    cardStyle?: ViewStyle;
 }
 
 // 使用memo并增加比较函数来优化渲染
 const MessageCard: FC<MessageCardProps> = ({
     message,
     onRetry,
-    onLongPress,
     onPress,
     isSelected,
     selectable,
     onEnterSelectMode,
     onDeleteMessage,
-    isStreaming
+    isStreaming,
+    cardStyle
 }) => {
     const colorScheme = useColorScheme();
     const colors = Colors[colorScheme ?? 'light'].chat;
@@ -46,24 +47,20 @@ const MessageCard: FC<MessageCardProps> = ({
     const isUser = message.role === 'user';
     const isNormalContent = message.contentType === 'markdown' || message.contentType === 'text';
     
-    // 添加展开/折叠状态管理
     const [thinkingExpanded, setThinkingExpanded] = useState(
       isStreaming ? true : message.isThinkingExpanded ?? false
     );
     
-    // 当流式传输停止时保持展开状态
     useEffect(() => {
       if (isStreaming) {
         setThinkingExpanded(true);
       }
     }, [isStreaming]);
     
-    // 处理思考内容展开/折叠状态变化
     const handleThinkingToggle = useCallback((expanded: boolean) => {
       setThinkingExpanded(expanded);
     }, []);
     
-    // 使用自定义Hook处理消息操作
     const { 
       menuVisible, 
       menuPosition, 
@@ -85,7 +82,6 @@ const MessageCard: FC<MessageCardProps> = ({
       iconColor: textColor
     });
     
-    // Markdown 样式配置
     const markdownStyles = getMarkdownStyles({
         colorScheme: colorScheme || 'light',
         textColor,
@@ -98,7 +94,6 @@ const MessageCard: FC<MessageCardProps> = ({
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     });
     
-    // 思考内容的专用样式
     const thinkingMarkdownStyles = {
       ...markdownStyles,
       body: {
@@ -108,35 +103,31 @@ const MessageCard: FC<MessageCardProps> = ({
       }
     };
 
-    // 确保只在选择模式下才显示选择状态
     const showSelected = selectable && isSelected;
     
-    // 组件卸载时清理资源
     useEffect(() => {
       return cleanup;
     }, []);
-
 
     const showContent = Boolean(message && (message.content || message.thinkingContent));
     const hasThinkingContent = Boolean(message && message.thinkingContent && message.thinkingContent.trim() !== '');
     const hasContent = Boolean(message && message.content);
 
     return (
-        <View style={styles.messageCardWrapper}>
+        <>
             <TouchableOpacity
                 style={[
                     styles.container,
                     isUser ? styles.userContainer : styles.botContainer,
                     showSelected && [styles.selectedContainer, { backgroundColor: colors.selectedBubbleBg }],
-                    // 添加流式消息的视觉反馈
-                    isStreaming && styles.streamingContainer
+                    isStreaming && styles.streamingContainer,
+                    cardStyle
                 ]}
                 activeOpacity={1}
                 onLongPress={handleLongPress}
                 onPress={onPress}
                 delayLongPress={500}
             >
-                {/* 选择框 */}
                 {!isUser && selectable && (
                     <View style={[styles.checkbox, styles.centerVertically]}>
                         {showSelected ? (
@@ -147,7 +138,6 @@ const MessageCard: FC<MessageCardProps> = ({
                     </View>
                 )}
 
-                {/* 消息气泡 */}
                 <View style={[
                     styles.bubble,
                     isUser ? [styles.userBubble, { backgroundColor: colors.userBubble, borderColor: colors.userBubbleBorder }]
@@ -161,17 +151,13 @@ const MessageCard: FC<MessageCardProps> = ({
                     isReading && styles.readingBubble
                 ]}>
                     <View style={styles.contentContainer}>
-                        {/* 消息内容区 - 直接使用message内容，不缓存 */}
                         {showContent ? (
                             isUser ? (
-                                /* 用户消息总是使用普通文本，添加可选择特性 */
                                 <ThemedText style={styles.messageText} selectable={true}>
                                     {message.content || ''}
                                 </ThemedText>
                             ) : (
-                                /* AI助手消息 */
                                 <View style={styles.contentContainer}>
-                                    {/* 思考内容检查 - 确保思考内容不为空且非undefined */}
                                     {hasThinkingContent && (
                                         <ThinkingContent
                                             thinkingContent={message.thinkingContent || ''}
@@ -183,12 +169,10 @@ const MessageCard: FC<MessageCardProps> = ({
                                         />
                                     )}
                                     
-                                    {/* 正常回答内容的分隔线 - 仅当两种内容都存在时显示 */}
                                     {hasContent && hasThinkingContent && (
                                         <View style={styles.contentDivider} />
                                     )}
                                     
-                                    {/* 正常回答内容 */}
                                     {hasContent && isNormalContent && (
                                         <NormalContent
                                             content={message.content || ''}
@@ -201,7 +185,15 @@ const MessageCard: FC<MessageCardProps> = ({
                             )
                         ) : null}
 
-                        {/* 消息状态指示器 */}
+                        {!isUser && !isStreaming && (
+                            <MetadataSection 
+                                message={message} 
+                                textColor={textColor} 
+                                tintColor={tintColor}
+                                colors={colors}
+                            />
+                        )}
+                        
                         <MessageStatusIndicator
                             status={message.status || 'idle'}
                             errorMessage={message.error}
@@ -211,7 +203,6 @@ const MessageCard: FC<MessageCardProps> = ({
                     </View>
                 </View>
 
-                {/* 用户消息选择框 */}
                 {isUser && selectable && (
                     <View style={[styles.checkbox, styles.centerVertically]}>
                         {showSelected ? (
@@ -223,7 +214,6 @@ const MessageCard: FC<MessageCardProps> = ({
                 )}
             </TouchableOpacity>
 
-            {/* 气泡操作菜单 */}
             <ActionMenu
                 visible={menuVisible}
                 onClose={closeMenu}
@@ -234,25 +224,23 @@ const MessageCard: FC<MessageCardProps> = ({
                 maxItemsPerRow={5}
             />
             
-            {/* 文本选择浮层 */}
             <TextSelectionOverlay
                 visible={textSelectionOverlayVisible}
                 content={message.content}
                 thinkingContent={message.thinkingContent}
                 onClose={handleCloseTextSelectionOverlay}
             />
-        </View>
+        </>
     );
 };
 
 const styles = StyleSheet.create({
-    messageCardWrapper: {
-        marginVertical: 0,
-    },
     container: {
         paddingHorizontal: 8,
         paddingVertical: 3,
         flexDirection: 'row',
+        marginTop: -20,
+        marginBottom: -20,
     },
     userContainer: {
         justifyContent: 'flex-end',
@@ -369,33 +357,26 @@ const styles = StyleSheet.create({
         borderColor: '#4e9bff',
         borderWidth: 1,
     },
-    // 流式消息容器样式
     streamingContainer: {
         opacity: 1,
     },
-    
-    // 流式消息气泡样式
     streamingBubble: {
         borderColor: '#4e9bff',
         borderWidth: 1,
     },
 });
 
-// 优化 memo 比较逻辑，添加安全检查
+// 优化 memo 比较逻辑，添加安全检查以及元数据比较
 export default memo(MessageCard, (prevProps, nextProps) => {
-  // 流式消息需要更频繁更新，而非流式消息可以少更新
   const isStreaming = nextProps.isStreaming;
   
-  // 安全检查
   if (!prevProps.message || !nextProps.message) {
-    return false; // 如果任一 message 为 undefined，则强制重新渲染
+    return false;
   }
   
-  // 判断内容变化
   const isSameContent = prevProps.message.content === nextProps.message.content;
   const isSameThinking = prevProps.message.thinkingContent === nextProps.message.thinkingContent;
   
-  // 对于流式消息，使用更低的阈值，确保更频繁更新
   const contentThreshold = isStreaming ? 25 : 100;
   
   const contentSimilar = !isSameContent && 
@@ -407,24 +388,20 @@ export default memo(MessageCard, (prevProps, nextProps) => {
     Math.abs((prevProps.message.thinkingContent?.length ?? 0) - 
     (nextProps.message.thinkingContent?.length ?? 0)) < contentThreshold;
   
-  // 其他状态比较
   const isSameStatus = prevProps.message.status === nextProps.message.status;
   const isSameSelection = prevProps.isSelected === nextProps.isSelected && prevProps.selectable === nextProps.selectable;
   const isSameStreaming = prevProps.isStreaming === nextProps.isStreaming;
   
-  // 流式更新消息时，需要更频繁地重新渲染
   if (isStreaming) {
-    // 流式消息下，仅当内容几乎相同(差异少于25字符)且状态一致时才跳过更新
     return (isSameContent || contentSimilar) && 
            (isSameThinking || thinkingSimilar) && 
            isSameStatus && 
            isSameSelection;
   }
   
-  // 非流式消息，采用更严格的优化策略
   return (isSameContent || contentSimilar) && 
          (isSameThinking || thinkingSimilar) && 
          isSameStatus && 
          isSameSelection && 
-         isSameStreaming;
+         isSameStreaming
 });

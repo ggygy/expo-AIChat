@@ -97,6 +97,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    marginTop: Platform.OS === 'ios' ? 0 : 36,
   },
   titleContainer: {
     flexDirection: 'row',

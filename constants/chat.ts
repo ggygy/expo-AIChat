@@ -32,6 +32,9 @@ export interface Message {
   thinkingContent?: string;
   // 新增字段：是否显示思考内容
   isThinkingExpanded?: boolean;
+  toolCalls?: any[]; // 工具调用信息
+  invalidToolCalls?: any[]; // 无效的工具调用信息
+  metadata?: any; // 附加元数据
 }
 
 // 助手特性

@@ -100,6 +100,9 @@ export const Colors = {
       thinkingBubble: '#f5f5f5',
       thinkingBubbleBorder: '#e0e0e0',
       thinkingText: '#666666',
+      metadataBorder: '#e0e0e0',
+      metadataBackground: '#f5f5f5',
+      toolCallBorder: '#4e9bff',
     },
   },
   dark: {
@@ -187,7 +190,6 @@ export const Colors = {
       tableBorder: '#424242',
       tableHeaderBg: '#2c2c2c',
       blockquoteBg: 'rgba(255,255,255,0.03)',
-      // 新增设置
       actionButtonBg: 'rgba(255,255,255,0.05)',
       actionButtonActiveBg: 'rgba(255,255,255,0.1)',
       actionButtonText: '#e0e0e0',
@@ -196,6 +198,9 @@ export const Colors = {
       thinkingBubble: '#2a2a2a',
       thinkingBubbleBorder: '#3a3a3a',
       thinkingText: '#a0a0a0',
+      metadataBorder: '#333333',
+      metadataBackground: '#222222',
+      toolCallBorder: '#4e9bff',
     },
   },
 } as const;

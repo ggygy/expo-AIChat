@@ -21,13 +21,14 @@ export function useStreamProcessor(
     isGeneratingRef: { current: boolean },
     onUpdate: MessageUpdateCallback
   ) => {
+    // 初始化变量，仅用于内容累积
     let content = '';
     let thinkingContent = '';
     let lastSaveLength = 0;
     let lastThinkingLength = 0;
-    let totalTokens = 0;
-    let promptTokens = 0;
-    let completionTokens = 0;
+    
+    // 保存原始chunks以便在流结束时一次性处理元数据
+    const chunksCollector: any[] = [];
     
     // 立即发送初始消息到UI，确保消息能立即显示
     console.log('流式响应开始：立即更新UI显示初始消息');
@@ -71,33 +72,28 @@ export function useStreamProcessor(
     try {
       let updateCount = 0;
       let lastUiUpdateTime = Date.now();
-      
-      // 添加UI更新计数，确保我们可以跟踪
       let uiUpdateCount = 0;
-      
-      // 正确初始化思考内容和内容
-      let hasReceivedThinkingContent = false; // 跟踪是否收到了思考内容
+      let hasReceivedThinkingContent = false;
       
       for await (const chunk of stream) {
+        // 将每个chunk保存起来，用于最后的元数据提取
+        chunksCollector.push(chunk);
+        
         // 检查是否已中止生成
         if (!isGeneratingRef.current) {
           console.log('流式生成被中止，将保存当前内容');
           break;
         }
         
-        // 处理chunk，更新内容
+        // 处理流式内容（只关注文本内容和思考内容的提取）
         const processedChunk = processChunk(
           chunk, 
           content, 
           thinkingContent,
-          {
-            total_tokens: totalTokens,
-            prompt_tokens: promptTokens,
-            completion_tokens: completionTokens
-          }
+          undefined // 不传递token信息，等最后一次性计算
         );
         
-        // 提取处理后的内容
+        // 只提取和更新文本内容
         const prevContentLength = content.length;
         const prevThinkingLength = thinkingContent.length;
         content = processedChunk.content || content;
@@ -112,31 +108,27 @@ export function useStreamProcessor(
           console.log('首次接收到思考内容:', thinkingContent.substring(0, 30) + '...');
         }
         
-        // 减少日志数量，只在特定条件记录
+        // 减少日志输出频率
         if (content !== '' && content.length % 300 === 0) {
           console.log(`流式更新 #${++updateCount}: 内容长度=${content.length}`);
         }
         
-        if ((content !== '' || thinkingContent !== '') && (hasContentChanged || hasThinkingChanged)) {
+        // 仅在内容确实变化时才更新UI和数据库
+        if ((hasContentChanged || hasThinkingChanged) && (content !== '' || thinkingContent !== '')) {
           const now = Date.now();
-          // 更新助手消息，同时包含两种内容
-          const updatedAssistantMessage = {
+          
+          // 简化的消息对象，只包含文本内容
+          const updatedAssistantMessage: Message = {
             ...assistantMessage,
-            content: content,
-            thinkingContent: thinkingContent,
+            content,
             contentType: 'markdown' as ContentType,
             status: 'streaming' as MessageStatus,
-            isThinkingExpanded: true, // 确保思考内容默认展开
-            tokenUsage: totalTokens > 0 ? {
-              total_tokens: totalTokens,
-              prompt_tokens: promptTokens,
-              completion_tokens: completionTokens
-            } : undefined
+            thinkingContent: thinkingContent || undefined,
+            isThinkingExpanded: thinkingContent ? true : undefined
           };
           
-          // 控制UI更新频率，但确保不会太久不更新
-          // 降低更新间隔，使得显示更加流畅
-          if (now - lastUiUpdateTime > 120) {  // 降低到120ms
+          // 控制UI更新频率
+          if (now - lastUiUpdateTime > 120) {
             scheduleUiUpdate([userMsg, updatedAssistantMessage], onUpdate);
             lastUiUpdateTime = now;
             uiUpdateCount++;
@@ -146,29 +138,21 @@ export function useStreamProcessor(
             }
           }
           
-          // 定期保存内容到数据库 - 增加思考内容变化的检测
+          // 定期保存内容到数据库，仅当有显著变化时，且仅保存文本内容
           const contentChanged = content.length - lastSaveLength > 250;
           const thinkingChanged = thinkingContent.length - lastThinkingLength > 250;
           
           if (contentChanged || thinkingChanged) {
-            // 记录当前长度，避免重复保存相同内容
             lastSaveLength = content.length;
             lastThinkingLength = thinkingContent.length;
             
-            // 计划数据库更新
-            const tokenInfo = totalTokens > 0 ? {
-              total_tokens: totalTokens,
-              prompt_tokens: promptTokens,
-              completion_tokens: completionTokens
-            } : undefined;
-            
-            scheduleDbUpdate(content, thinkingContent, 'streaming', tokenInfo);
+            scheduleDbUpdate(content, thinkingContent, 'streaming', undefined);
           }
         }
         
         // 添加一个延时，让UI线程有机会执行其他操作
         if (content.length % 50 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
     } catch (error) {
@@ -184,7 +168,57 @@ export function useStreamProcessor(
       dbUpdateTimeout = null;
     }
 
-    // 构建token使用信息对象
+    console.log('流式生成结束，开始提取元数据...');
+    console.log(`收集到 ${chunksCollector.length} 个数据块`);
+    
+    // 流结束后，一次性从所有chunks中提取完整元数据
+    let totalTokens = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let toolCalls: any[] = [];
+    let invalidToolCalls: any[] = [];
+    let metadata: any = {};
+    
+    // 提取最后一个chunk或最高级别的token信息
+    for (const chunk of chunksCollector) {
+      // 处理每个chunk，但只关注元数据提取
+      const processResult = processChunk(chunk, '', '', {
+        total_tokens: totalTokens,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens
+      });
+      
+      // 记录最大的token值
+      if (processResult.tokenUsage) {
+        const { total_tokens, prompt_tokens, completion_tokens } = processResult.tokenUsage;
+        if (total_tokens && total_tokens > totalTokens) totalTokens = total_tokens;
+        if (prompt_tokens && prompt_tokens > promptTokens) promptTokens = prompt_tokens;
+        if (completion_tokens && completion_tokens > completionTokens) completionTokens = completion_tokens;
+      }
+      
+      // 合并工具调用（去重）
+      if (processResult.toolCalls?.length) {
+        for (const call of processResult.toolCalls) {
+          if (!toolCalls.some(existing => 
+              existing.id === call.id || JSON.stringify(existing) === JSON.stringify(call))) {
+            toolCalls.push(call);
+          }
+        }
+      }
+      
+      // 合并无效工具调用（去重）
+      if (processResult.invalidToolCalls?.length) {
+        for (const call of processResult.invalidToolCalls) {
+          if (!invalidToolCalls.some(existing => JSON.stringify(existing) === JSON.stringify(call))) {
+            invalidToolCalls.push(call);
+          }
+        }
+      }
+    }
+    
+    console.log(`完成元数据提取: tokens=${totalTokens}, 工具调用=${toolCalls.length}`);
+    
+    // 构建统一的token使用信息对象
     const tokenInfo = totalTokens > 0 ? {
       total_tokens: totalTokens,
       prompt_tokens: promptTokens,
@@ -200,10 +234,10 @@ export function useStreamProcessor(
       statusToSave = 'sent'; // 仍使用'sent'状态，保证UI显示正确
     }
     
-    // 直接同步执行最终消息保存
-    console.log('开始保存最终消息...');
+    // 直接同步执行最终消息保存（包含所有元数据）
+    console.log('开始保存最终消息（包含完整元数据）...');
     try {
-      // 保存最终消息，包括思考内容
+      // 保存最终消息，包括思考内容和所有元数据
       console.log(`保存完整内容: 内容=${content.length}字符, 思考=${thinkingContent.length}字符, tokens=${totalTokens}`);
       await messageDb.updateMessageWithThinking(
         assistantMessage.id, 
@@ -219,19 +253,22 @@ export function useStreamProcessor(
       console.error('更新消息内容失败:', updateError);
     }
     
-    // 更新最终消息，包含两种内容
+    // 最终消息包含所有元数据
     const finalAssistantMessage: Message = {
       ...assistantMessage,
-      content: content,
-      thinkingContent: thinkingContent,
-      contentType: 'markdown' as ContentType, // 明确指定为ContentType类型
+      content,
+      contentType: 'markdown' as ContentType,
       status: statusToSave,
-      isThinkingExpanded: true, // 确保思考内容默认展开
-      tokenUsage: tokenInfo
+      thinkingContent: thinkingContent || undefined,
+      isThinkingExpanded: thinkingContent ? true : undefined,
+      tokenUsage: tokenInfo,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      invalidToolCalls: invalidToolCalls.length > 0 ? invalidToolCalls : undefined,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined
     };
     
     console.log('流式生成完成，更新UI和保存最终内容');
-    // 最后一次更新 UI - 使用正确的消息列表
+    // 最后一次更新 UI - 使用包含所有元数据的最终消息
     onUpdate([userMsg, finalAssistantMessage]);
     
     // 再发送一次最终更新，使用更长延时确保UI能正确显示完整内容

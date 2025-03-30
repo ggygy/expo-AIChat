@@ -19,6 +19,7 @@ import { toastConfig } from '@/components/toastConfig';
 import { initDatabase } from '@/database';
 import { configureLangChainFetch } from '@/utils/langchainFetchAdapter';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import 'react-native-url-polyfill/auto';
 
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.

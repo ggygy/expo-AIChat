@@ -93,6 +93,15 @@ export const zh = {
     listeningStart: '请开始说话',
     speechRecognitionFailed: "语音识别失败，请重试。",
     recordingFailed: '录音失败，请重试。',
+    tokenUsage: "Token 用量",
+    tokenTotal: "总计",
+    tokenInput: "输入",
+    tokenOutput: "输出",
+    toolCalls: "工具调用",
+    toolDefault: "工具",
+    showDetails: "显示详细信息",
+    hideDetails: "隐藏详细信息",
+    metadataTitle: "消息详情",
   },
   config: {
     title: '服务商配置',
@@ -177,7 +186,9 @@ export const zh = {
     chat: '对话',
     image: '图像',
     embedding: '嵌入',
-    inference: '推理'
+    inference: '推理',
+    multimodal: '多模态',
+    audio: '音频',
   },
   version: {
     description: 'AI Chat 是一款基于人工智能的聊天应用，支持多种AI模型和对话方式。',

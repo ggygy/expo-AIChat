@@ -17,7 +17,7 @@ export const messageDb = {
   
   // 消息内容操作
   updateMessageContent: messageContentDb.updateMessageContent,
-  updateMessageContentWithTokens: messageContentDb.updateMessageContentWithTokens,
+  updateMessageContentWithMeta: messageContentDb.updateMessageContentWithMeta,
   updateMessageWithThinking: messageContentDb.updateMessageWithThinking,
   
   // 消息管理操作

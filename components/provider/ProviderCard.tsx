@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Button } from '@/components/ui/Button';
 import { ProviderConfig } from '@/store/useProviderStore';
@@ -59,7 +59,7 @@ function ProviderCard({
               <ThemedText style={[styles.description, { color: linkColor }]}>
                 {i18n.t('config.getApiKey')}
               </ThemedText>
-              <IconSymbol name="chevron-right" size={15} color={linkColor} />
+              <IconSymbol name="chevron-right" size={ Platform.OS === 'android' ? 20 : 15} color={linkColor} />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={confirmDelete} style={styles.deleteButton} activeOpacity={0.6}>
@@ -122,11 +122,13 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    marginRight: 2,
+    marginRight: 1,
+    marginBottom: 2,
   },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonRow: {
     flexDirection: 'row',

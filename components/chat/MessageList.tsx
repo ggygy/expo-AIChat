@@ -307,10 +307,9 @@ const MessageList = forwardRef<MessageListRef, MessageListProps>(({
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={true}
         onLayout={handleListLayout}
+        ListFooterComponent={<View style={{height: 30}}></View>}
         contentContainerStyle={{
-          paddingVertical: 8,
-          paddingTop: 40,
-          paddingBottom: 40
+          paddingVertical: 4,
         }}
         extraData={selectedMessagesStr}
         keyExtractor={(item) => item?.id || `item-${item?.timestamp || Math.random()}`}

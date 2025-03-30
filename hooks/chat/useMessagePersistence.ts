@@ -80,7 +80,7 @@ export function useMessagePersistence(botId: string) {
         );
       } else {
         console.log(`保存完整内容: 内容=${content.length}字符`);
-        await messageDb.updateMessageContent(messageId, content, status, 'markdown');
+        await messageDb.updateMessageContentWithMeta(messageId, content, status, 'markdown');
       }
       console.log('消息内容保存成功，ID:', messageId);
     } catch (error) {

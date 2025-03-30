@@ -10,7 +10,7 @@ interface Props {
   onToggleType: (type: ModelType) => void;
 }
 
-const MODEL_TYPES: ModelType[] = ['chat', 'image', 'embedding', 'inference'];
+const MODEL_TYPES: ModelType[] = ['chat', 'image', 'embedding', 'inference', 'audio', 'multimodal'];
 
 const ModelTypeSelector = ({ selectedTypes, onToggleType }: Props) => {
   const backgroundColor = useThemeColor({}, 'settingItemBackground');

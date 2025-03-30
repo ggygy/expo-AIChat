@@ -103,8 +103,6 @@ export function useAIChat(botId: string) {
         try {
           await messageDb.addMessage(botId, userMsg);
           console.log('用户消息成功保存到数据库，ID:', userMsg.id);
-          
-          console.log('直接保存助手消息到数据库');
           await messageDb.addMessage(botId, assistantMessage);
           console.log('助手消息成功保存到数据库，ID:', assistantMessage.id);
         } catch (dbError) {
@@ -173,6 +171,7 @@ export function useAIChat(botId: string) {
               onUpdate
             );
             console.log('流式响应生成完成:', finalAssistantMessage.id);
+            console.log('流式响应内容:', finalAssistantMessage.toolCalls);
             
             // 额外确保最终消息也被传递给UI，增加延迟确保UI更新
             setTimeout(() => {

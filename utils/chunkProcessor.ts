@@ -14,6 +14,10 @@ export interface TokenUsage {
 export interface ProcessedChunk {
   content: string;
   thinkingContent: string;
+  tokenUsage?: TokenUsage;
+  toolCalls?: any[];
+  invalidToolCalls?: any[];
+  metadata?: any;
 }
 
 /**
@@ -41,7 +45,7 @@ export function processChunk(
   // 打印接收到的chunk结构，便于调试
   if (process.env.NODE_ENV === 'development') {
     try {
-      console.log('收到chunk:', JSON.stringify(chunk, null, 2).substring(0, 200) + '...');
+      // console.log('收到chunk:', JSON.stringify(chunk, null, 2).substring(0, 100) + '...');
     } catch (e) {
       console.log('收到非JSON格式chunk');
     }
@@ -50,24 +54,75 @@ export function processChunk(
   let chunkContent: string | undefined;
   let chunkThinking: string | undefined;
   let chunkType: MessageType = 'normal';
+  let metadata: any = {};
+  let toolCalls: any[] = [];
+  let invalidToolCalls: any[] = [];
   
   // 提取令牌使用信息
   let totalTokens = tokenUsage?.total_tokens || 0;
   let promptTokens = tokenUsage?.prompt_tokens || 0;
   let completionTokens = tokenUsage?.completion_tokens || 0;
   
-  // 尝试从chunk中提取tokens信息
-  if (chunk.response_metadata?.tokenUsage) {
-    const { total_tokens, prompt_tokens, completion_tokens } = chunk.response_metadata.tokenUsage;
-    if (total_tokens) totalTokens = total_tokens;
-    if (prompt_tokens) promptTokens = prompt_tokens;
-    if (completion_tokens) completionTokens = completion_tokens;
+  // 处理各种可能的token使用信息格式
+  // 1. 尝试从response_metadata.usage中提取
+  if (chunk.response_metadata?.usage) {
+    const usage = chunk.response_metadata.usage;
+    if (usage.total_tokens) totalTokens = usage.total_tokens;
+    if (usage.prompt_tokens) promptTokens = usage.prompt_tokens;
+    if (usage.completion_tokens) completionTokens = usage.completion_tokens;
+    console.log('从response_metadata.usage提取token信息:', totalTokens);
+  }
+  
+  // 2. 尝试从usage_metadata中提取
+  if (chunk.usage_metadata) {
+    const usage = chunk.usage_metadata;
+    if (usage.total_tokens) totalTokens = usage.total_tokens;
+    if (usage.input_tokens) promptTokens = usage.input_tokens;
+    if (usage.output_tokens) completionTokens = usage.output_tokens;
+    
+    // 保存详细的token使用信息
+    if (usage.input_token_details || usage.output_token_details) {
+      metadata.tokenDetails = {
+        input: usage.input_token_details,
+        output: usage.output_token_details
+      };
+    }
+    console.log('从usage_metadata提取token信息:', totalTokens);
+  }
+  
+  // 3. 尝试从kwargs.usage_metadata中提取
+  if (chunk.kwargs?.usage_metadata) {
+    const usage = chunk.kwargs.usage_metadata;
+    if (usage.total_tokens) totalTokens = usage.total_tokens;
+    if (usage.input_tokens) promptTokens = usage.input_tokens;
+    if (usage.output_tokens) completionTokens = usage.output_tokens;
+    console.log('从kwargs.usage_metadata提取token信息:', totalTokens);
+  }
+  
+  // 提取工具调用信息
+  if (chunk.tool_calls && Array.isArray(chunk.tool_calls)) {
+    toolCalls = chunk.tool_calls;
+    console.log('提取工具调用:', toolCalls.length);
+  } else if (chunk.kwargs?.tool_calls && Array.isArray(chunk.kwargs.tool_calls)) {
+    toolCalls = chunk.kwargs.tool_calls;
+    console.log('从kwargs提取工具调用:', toolCalls.length);
+  }
+  
+  // 提取无效工具调用
+  if (chunk.invalid_tool_calls && Array.isArray(chunk.invalid_tool_calls)) {
+    invalidToolCalls = chunk.invalid_tool_calls;
+    console.log('提取无效工具调用:', invalidToolCalls.length);
+  } else if (chunk.kwargs?.invalid_tool_calls && Array.isArray(chunk.kwargs.invalid_tool_calls)) {
+    invalidToolCalls = chunk.kwargs.invalid_tool_calls;
+    console.log('从kwargs提取无效工具调用:', invalidToolCalls.length);
   }
   
   // 处理常规内容
   if (typeof chunk.content === 'string') {
     chunkContent = chunk.content;
-  } 
+  } else if (chunk.kwargs?.content && typeof chunk.kwargs.content === 'string') {
+    chunkContent = chunk.kwargs.content;
+  }
   
   // 处理思考过程 - 检查所有可能的思考内容字段
   // 1. additional_kwargs.reasoning_content
@@ -88,31 +143,11 @@ export function processChunk(
     chunkThinking = chunk.reasoning || chunk.content.reasoning;
     console.log('检测到推理内容(reasoning):', chunkThinking?.substring(0, 20) + '...');
   }
-  
-  // 处理其他格式的消息数据
-  if (!chunkContent && !chunkThinking && chunk.content && typeof chunk.content === 'object') {
-    try {
-      // 处理对象格式内容
-      if ('content' in chunk.content && 'type' in chunk.content) {
-        const contentType = chunk.content.type;
-        const contentText = String(chunk.content.content || '');
-        
-        if (contentType === 'thinking') {
-          chunkThinking = contentText;
-          console.log('检测到思考类型内容:', contentText.substring(0, 20) + '...');
-        } else {
-          chunkContent = contentText;
-        }
-      } else if ('text' in chunk.content) {
-        chunkContent = String(chunk.content.text);
-      } else if ('reasoning' in chunk.content) {
-        chunkThinking = String(chunk.content.reasoning);
-        console.log('检测到content.reasoning字段:', chunkThinking.substring(0, 20) + '...');
-      }
-    } catch (e) {
-      console.warn('处理流式响应块失败:', e);
-      chunkContent = String(chunk.content) || '';
-    }
+  // 4. kwargs.additional_kwargs 中寻找思考内容
+  else if (chunk.kwargs?.additional_kwargs?.reasoning_content) {
+    chunkType = 'thinking';
+    chunkThinking = chunk.kwargs.additional_kwargs.reasoning_content;
+    console.log('从kwargs检测到推理内容:', chunkThinking?.substring(0, 20) + '...');
   }
   
   // 更新内容，将新块追加到现有内容
@@ -152,9 +187,18 @@ export function processChunk(
     console.log('更新思考内容，当前长度:', thinkingContent.length);
   }
   
+  // 更新返回结果，包含所有提取的信息
   return {
     content,
     thinkingContent,
+    tokenUsage: {
+      total_tokens: totalTokens,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens
+    },
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    invalidToolCalls: invalidToolCalls.length > 0 ? invalidToolCalls : undefined,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined
   };
 }
 

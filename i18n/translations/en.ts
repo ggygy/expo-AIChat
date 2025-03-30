@@ -92,6 +92,15 @@ export const en = {
     speechRecognitionFailed: "Speech recognition failed. Please try again.",
     listeningStart: "Please start speaking",
     recordingFailed: "Failed to record audio. Please try again.",
+    tokenUsage: "Token Usage",
+    tokenTotal: "Total",
+    tokenInput: "Input",
+    tokenOutput: "Output",
+    toolCalls: "Tool Calls",
+    toolDefault: "Tool",
+    showDetails: "Show Details",
+    hideDetails: "Hide Details",
+    metadataTitle: "Message Details",
   },
   config: {
     title: 'Provider Configuration',
@@ -176,7 +185,9 @@ export const en = {
     chat: 'Chat',
     image: 'Image',
     embedding: 'Embedding',
-    inference: 'Inference'
+    inference: 'Inference',
+    multimodal: 'Multimodal',
+    audio: 'Audio',
   },
   version: {
     description: 'AI Chat is a conversational application powered by artificial intelligence, supporting multiple AI models and conversation modes.',

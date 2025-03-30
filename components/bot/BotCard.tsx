@@ -64,7 +64,7 @@ const BotCard: React.FC<BotCardProps> = ({
           ]}
         >
           <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
-            <IconSymbol name="gear" type="symbol" size={22} color="white" />
+            <IconSymbol name="gear" type="fontAwesome" size={22} color="white" />
             <ThemedText style={styles.actionText}>
               {i18n.t('bot.edit')}
             </ThemedText>
@@ -96,7 +96,7 @@ const BotCard: React.FC<BotCardProps> = ({
           ]}
         >
           <TouchableOpacity onPress={onDelete} style={styles.actionButton}>
-            <IconSymbol name="trash" type="symbol" size={22} color="white" />
+            <IconSymbol name="trash" type="fontAwesome" size={22} color="white" />
             <ThemedText style={styles.actionText}>
               {i18n.t('bot.delete')} 
             </ThemedText>
@@ -136,11 +136,11 @@ const BotCard: React.FC<BotCardProps> = ({
         activeOpacity={0.8}
       >
         <ThemedView style={styles.iconContainer}>
-        <CustomIcon 
-          name={iconConfig.name as IconNames} 
-          size={iconConfig.size} 
-          color={iconConfig.defaultColor || iconColor}
-        />
+          <CustomIcon 
+            name={iconConfig.name as IconNames} 
+            size={iconConfig.size} 
+            color={iconConfig.defaultColor || iconColor}
+          />
         </ThemedView>
         <View style={styles.cardContent}>
           <View style={styles.titleRow}>
