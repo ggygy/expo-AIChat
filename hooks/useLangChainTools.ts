@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
-import { Tool } from "langchain/tools";
+import { ToolInterface } from "@langchain/core/tools"; // 更改导入
 import { Message } from '@/constants/chat';
 import { useBotStore } from '@/store/useBotStore';
 import { usePromptStore } from '@/store/usePromptStore';
@@ -101,11 +101,11 @@ export function useLangChainTools(botId: string) {
   /**
    * 加载Bot启用的工具
    */
-  const loadEnabledTools = useCallback((): Tool[] => {
+  const loadEnabledTools = useCallback((): ToolInterface[] => {
     const botInfo = getBotInfo(botId);
     if (!botInfo || !botInfo.enabledToolIds?.length) return [];
     
-    const enabledTools: Tool[] = [];
+    const enabledTools: ToolInterface[] = [];
     
     // 只加载启用的工具
     for (const toolId of botInfo.enabledToolIds) {
@@ -113,6 +113,8 @@ export function useLangChainTools(botId: string) {
       if (toolDef) {
         try {
           const tool = createDynamicTool(toolDef);
+          console.log(`加载工具: ${toolDef.name}`, tool);
+          
           enabledTools.push(tool);
         } catch (error) {
           console.error(`初始化工具"${toolDef.name}"失败:`, error);

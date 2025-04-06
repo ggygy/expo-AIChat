@@ -36,12 +36,24 @@ export class DeepseekProvider extends BaseProvider {
     let model = new ChatDeepSeek(modelOptions);
     this.model = model;
     
-    // 使用bindTools方法绑定工具，而不是在初始化选项中传递
+    // 使用addTools方法绑定工具
     if (config.tools && config.tools.length > 0) {
       console.log(`DeepSeek Provider 绑定工具，数量: ${config.tools.length}`);
-      let llmWithTools = model.bindTools(config.tools);
-      this.llmWithTools = llmWithTools;
-    }
+      console.log(`工具名称: ${config.tools.map(t => t.name).join(', ')}`);
+      console.log('工具列表:', JSON.stringify(config.tools));
+      
+      
+      try {
+          // 直接使用模型的bindTools方法，简化工具绑定过程
+          this.llmWithTools = model.bindTools(config.tools);
+          this.tools = config.tools;
+          this.hasToolsCapability = true;
+          console.log(`DeepSeek Provider 工具绑定完成`);
+      } catch (error) {
+          console.error("绑定工具失败:", error);
+          this.hasToolsCapability = false;
+      }
+  }
 
     // 如果有系统提示，创建系统消息
     if (config.systemPrompt) {
