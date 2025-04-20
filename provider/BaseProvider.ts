@@ -11,6 +11,7 @@ import {
   getLastConversationTurn,
   processMessagesForReasoner
 } from '@/utils/conversationUtils';
+import { type ToolCall } from '@langchain/core/dist/messages/tool';
 
 export interface ModelConfig {
   vendor: ModelProviderId;
@@ -35,26 +36,28 @@ export interface TestModelResult {
 
 export interface IModelProvider {
   initialize(config: ModelConfig): void;
-  chat(messages: BaseMessage[]): Promise<string>;
+  chat(messages: BaseMessage[]): Promise<AIMessageChunk>;
   stream(messages: BaseMessage[]): Promise<IterableReadableStream<any>>;
   processMessagesForReasoner(messages: BaseMessage[]): Promise<BaseMessage[]>;
   testModel(): Promise<TestModelResult>;
   supportsToolCalling(): boolean;
-  addTools?(tools: ToolInterface[]): Promise<void>;
+  getLastToolCalls?(): any[] | undefined;
 }
 
 export abstract class BaseProvider implements IModelProvider {
   protected model!: BaseChatModel;
-  protected llmWithTools?: Runnable<BaseLanguageModelInput, AIMessageChunk, ChatDeepSeekCallOptions>;
+  protected llmWithTools?: Runnable<BaseLanguageModelInput, AIMessageChunk>;
   protected systemMessage?: SystemMessage;
   protected maxTokens?: number;
   protected tools: ToolInterface[] = [];
   protected hasToolsCapability: boolean = false;
   protected agentExecutor?: AgentExecutor;
+  protected lastToolCalls: ToolCall[] = []; // 存储最近一次的工具调用信息
+  protected lastInvalidToolCalls: any[] = []; // 存储最近一次的无效工具调用信息
 
   abstract initialize(config: ModelConfig): void;
 
-  async chat(messages: BaseMessage[]): Promise<string> {
+  async chat(messages: BaseMessage[]): Promise<AIMessageChunk> {
     const processedMessages = await this.processMessagesForReasoner(messages);
     const messageList = this.systemMessage
       ? [this.systemMessage, ...processedMessages]
@@ -66,11 +69,11 @@ export abstract class BaseProvider implements IModelProvider {
         
         // 使用更清晰的工具调用处理流程
         const response = await this.processToolCalls(messageList);
-        return response;
+        return response as AIMessageChunk;
       } catch (error) {
         console.error("工具调用处理出错:", error);
         const response = await this.model.invoke(messageList);
-        return response.content.toString();
+        return response;
       }
     } else if (this.agentExecutor) {
       try {
@@ -81,50 +84,77 @@ export abstract class BaseProvider implements IModelProvider {
       } catch (error) {
         console.error("Agent执行器出错:", error);
         const response = await this.model.invoke(messageList);
-        return response.content.toString();
+        return response;
       }
     } else {
       console.log(`[${this.constructor.name}] 使用普通模型`);
       const response = await this.model.invoke(messageList);
-      return response.content.toString();
+      return response;
     }
   }
 
   async stream(messages: BaseMessage[]): Promise<IterableReadableStream<any>> {
     const processedMessages = await this.processMessagesForReasoner(messages);
+    
     const messageList = this.systemMessage
       ? [this.systemMessage, ...processedMessages]
       : processedMessages;
 
-    // 注意：工具调用通常与流式输出不兼容
-    // 简单地使用原始模型进行流式输出
-    return this.model.stream(messageList);
+    // 支持工具调用的流式输出
+    if (this.hasToolsCapability && this.llmWithTools && this.tools.length > 0) {
+      try {
+        console.log(`[${this.constructor.name}] 使用工具调用模式（流式输出）`);
+        const response = await this.processToolCalls(messageList, true);
+        if (response instanceof IterableReadableStream) {
+          return response;
+        } else {
+          // 如果返回类型不是流，直接抛出错误
+          throw new Error("工具调用处理返回了非流式数据");
+        }
+      } catch (error) {
+        console.error("工具调用处理出错，回退到普通流式输出:", error);
+        return this.model.stream(messageList);
+      }
+    } else if (this.agentExecutor) {
+      // Agent暂不支持流式输出，回退到普通流式输出
+      console.log(`[${this.constructor.name}] Agent执行器不支持流式输出，使用普通流式输出`);
+      return this.model.stream(messageList);
+    } else {
+      console.log(`[${this.constructor.name}] 使用普通流式输出`);
+      return this.model.stream(messageList);
+    }
   }
 
   /**
    * 处理工具调用逻辑，遵循LangChain官方推荐方式
    * @param messages 消息列表
-   * @returns 最终响应文本
+   * @param streamMode 是否使用流式输出模式
+   * @returns 最终响应文本或流
    */
-  protected async processToolCalls(messages: BaseMessage[]): Promise<string> {
+  protected async processToolCalls(messages: BaseMessage[], streamMode: boolean = false): Promise<AIMessageChunk | IterableReadableStream<any>> {
     try {
-      // 第一步：向模型发送请求，获取初始回复
-      console.log("发送消息到模型以获取初始回复...");
-      
-      // 确保只传递最新的人类消息，以减少错误
+      // 重置工具调用记录
+      this.lastToolCalls = [];
+      this.lastInvalidToolCalls = [];
+
+      // 确保只传递系统消息和最后一条人类消息
       const latestMessages = getLastConversationTurn(messages);
-      console.log(`使用最新的消息进行工具调用，消息数量: ${latestMessages.length}`);
-      
+      // 使用提取的消息获取初始回复
       const aiMessage = await this.llmWithTools!.invoke(latestMessages);
       
       // 如果没有工具调用，直接返回内容
       if (!aiMessage.tool_calls || aiMessage.tool_calls.length === 0) {
-        return aiMessage.content.toString();
+        if (streamMode) {
+          // 在流模式下，只使用系统消息和最后一条人类消息，加上新的AI回复
+          return this.model.stream([...latestMessages, aiMessage]);
+        }
+        return aiMessage;
       }
       
-      console.log(`检测到工具调用请求，处理 ${aiMessage.tool_calls.length} 个工具调用:`, 
-        JSON.stringify(aiMessage.tool_calls.map(tc => ({ name: tc.name, args: tc.args })))
-      );
+      // 记录所有工具调用
+      if (aiMessage.tool_calls) {
+        this.lastToolCalls = [...aiMessage.tool_calls];
+      }
       
       // 第二步：创建包含初始回复的消息列表
       let updatedMessages = [...latestMessages, aiMessage];
@@ -175,6 +205,12 @@ export abstract class BaseProvider implements IModelProvider {
               name: toolCall.name
             });
             updatedMessages.push(errorMessage);
+            
+            // 记录无效工具调用
+            this.lastInvalidToolCalls.push({
+              ...toolCall,
+              error: error instanceof Error ? error.message : '未知错误'
+            });
           }
         } else {
           // 处理找不到工具的情况
@@ -185,13 +221,23 @@ export abstract class BaseProvider implements IModelProvider {
             name: toolCall.name
           });
           updatedMessages.push(errorMessage);
+          
+          // 记录无效工具调用
+          this.lastInvalidToolCalls.push({
+            ...toolCall,
+            error: `找不到工具: ${toolCall.name}`
+          });
         }
       }
       
-      // 第四步：发送包含工具结果的完整消息列表，获取最终回复
-      console.log("获取最终回复...");
-      const finalResponse = await this.llmWithTools!.invoke(updatedMessages);
-      return finalResponse.content.toString();
+      if (streamMode) {
+        // 将处理工具调用产生的消息直接用于流式输出
+        console.log(`流模式下，使用 ${updatedMessages.length} 条消息进行流式输出`);
+        return this.model.stream(updatedMessages);
+      } else {
+        const finalResponse = await this.llmWithTools!.invoke(updatedMessages);
+        return finalResponse;
+      }
     } catch (error) {
       console.error("工具调用处理出错:", error);
       throw error; // 向上层传递错误，让它处理回退逻辑
@@ -265,21 +311,24 @@ export abstract class BaseProvider implements IModelProvider {
     }
   }
 
-  async addTools(tools: ToolInterface[]): Promise<void> {
-    if (tools && tools.length > 0) {
-      this.tools = tools;
-      
-      try {
-        if (this.model && typeof (this.model as any).bindTools === 'function') {
-          this.llmWithTools = (this.model as any).bindTools(tools);
-          this.hasToolsCapability = true;
-          console.log(`[${this.constructor.name}] 成功使用原生方法绑定了 ${tools.length} 个工具`);
-        }
-      } catch (error) {
-        console.error(`[${this.constructor.name}] 绑定工具失败:`, error);
-        this.hasToolsCapability = false;
-      }
+  /**
+   * 获取最近一次对话中的工具调用信息
+   * @returns 工具调用信息数组，如果没有则返回undefined
+   */
+  getLastToolCalls(): ToolCall[] | undefined {
+    // 如果有工具调用，则返回工具调用信息
+    if (this.lastToolCalls && this.lastToolCalls.length > 0) {
+      // 返回工具调用信息的深拷贝，避免外部修改
+      return JSON.parse(JSON.stringify(this.lastToolCalls));
     }
+    
+    // 如果只有无效工具调用，也返回这些信息
+    if (this.lastInvalidToolCalls && this.lastInvalidToolCalls.length > 0) {
+      return JSON.parse(JSON.stringify(this.lastInvalidToolCalls));
+    }
+    
+    // 如果都没有，返回undefined
+    return undefined;
   }
 }
 

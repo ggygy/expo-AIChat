@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { useToolStore } from '@/store/useToolStore';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { CodeEditor } from '@/components/ui/CodeEditor';
 import i18n from '@/i18n/i18n';
 
 export default function ToolEditorDetailScreen() {
@@ -45,7 +46,6 @@ export default function ToolEditorDetailScreen() {
   
   const warningBgColor = useThemeColor({}, 'warning');
   const warningTextColor = useThemeColor({}, 'warning');
-  const codeBgColor = useThemeColor({}, 'settingItemBackground');
   
   // 检查工具是否存在
   useEffect(() => {
@@ -175,15 +175,14 @@ export default function ToolEditorDetailScreen() {
           />
 
           <ThemedView style={styles.codeSection}>
-            <ThemedText style={styles.codeHeader}>{i18n.t('explore.functionImplementation')}</ThemedText>
-            <Input 
+            <CodeEditor
+              label={i18n.t('explore.functionImplementation')}
               value={func}
               onChangeText={setFunc}
-              multiline
-              numberOfLines={15}
-              textAlignVertical="top"
-              style={[styles.codeInput, { backgroundColor: codeBgColor }]}
+              placeholder="// 在此输入函数体"
               editable={!isSystemTool}
+              minHeight={250}
+              language="javascript"
             />
             <ThemedText style={styles.codeTip}>
               {i18n.t('explore.functionImplementationTip')}
@@ -191,16 +190,15 @@ export default function ToolEditorDetailScreen() {
           </ThemedView>
 
           <ThemedView style={styles.codeSection}>
-            <ThemedText style={styles.codeHeader}>{i18n.t('explore.parameters')}</ThemedText>
-            <Input 
+            <CodeEditor
+              label={i18n.t('explore.parameters')}
               value={parametersJson}
               onChangeText={setParametersJson}
-              multiline
-              numberOfLines={10}
-              textAlignVertical="top"
-              style={[styles.codeInput, { backgroundColor: codeBgColor }]}
+              placeholder="{}"
               editable={!isSystemTool}
               error={parametersError}
+              minHeight={200}
+              language="json"
             />
             <ThemedText style={styles.codeTip}>
               {i18n.t('explore.parametersTip')}
@@ -250,6 +248,7 @@ export default function ToolEditorDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: 90,
   },
   contentContainer: {
     padding: 16,
@@ -265,11 +264,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 4,
-  },
-  codeInput: {
-    height: 200,
-    paddingTop: 12,
-    fontFamily: 'monospace',
   },
   codeTip: {
     fontSize: 12,

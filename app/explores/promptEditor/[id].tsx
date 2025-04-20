@@ -9,6 +9,7 @@ import { usePromptStore } from '@/store/usePromptStore';
 import { parseTemplateVariables } from '@/langchain/prompt';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { CodeEditor } from '@/components/ui/CodeEditor';
 import i18n from '@/i18n/i18n';
 
 export default function PromptEditorDetailScreen() {
@@ -119,16 +120,13 @@ export default function PromptEditorDetailScreen() {
             editable={!isSystemTemplate}
           />
 
-          <Input 
+          <CodeEditor
             label={i18n.t('explore.template')}
             value={template}
             onChangeText={setTemplate}
-            multiline
-            numberOfLines={10}
-            textAlignVertical="top"
-            style={styles.templateInput}
             placeholder={i18n.t('explore.templatePlaceholder')}
             editable={!isSystemTemplate}
+            minHeight={200}
           />
 
           {variables.length > 0 && (
@@ -198,16 +196,13 @@ export default function PromptEditorDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: 90,
   },
   contentContainer: {
     padding: 16,
   },
   form: {
     gap: 16,
-  },
-  templateInput: {
-    height: 200,
-    paddingTop: 12,
   },
   variablesContainer: {
     padding: 16,

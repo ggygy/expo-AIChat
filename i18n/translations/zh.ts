@@ -22,6 +22,8 @@ export const zh = {
     new: "新建",
     edit: "编辑",
     micPermissionDenied: "麦克风权限被拒绝，请在设置中开启。",
+    warning: '警告',
+    ok: '确定',
   },
   tabs: {
     home: '首页',
@@ -189,6 +191,7 @@ export const zh = {
     inference: '推理',
     multimodal: '多模态',
     audio: '音频',
+    tool: '工具',
   },
   version: {
     description: 'AI Chat 是一款基于人工智能的聊天应用，支持多种AI模型和对话方式。',
@@ -241,6 +244,9 @@ export const zh = {
     notFound: '未找到助手信息',
     updateSuccess: '助手信息已更新',
     systemPrompt: '系统提示词',
+    modelToolsNotSupported: '当前选择的模型不支持工具功能',
+    selectToolsToUse: '选择要允许AI使用的工具',
+    selectTools: '启用工具',
   },
   explore: {
     title: "探索",

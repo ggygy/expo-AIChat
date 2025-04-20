@@ -1,3 +1,4 @@
+import { type ToolCall } from '@langchain/core/dist/messages/tool';
 import { ensureDb, columnExists, addColumn } from './connection';
 
 /**
@@ -157,7 +158,7 @@ export const messageContentDb = {
     contentType: string = 'text',
     tokenUsage?: any,
     metadata?: {
-      toolCalls?: any[],
+      toolCalls?: ToolCall[],
       invalidToolCalls?: any[],
       additionalMetadata?: any
     }

@@ -6,6 +6,7 @@ import { useLangChainTools } from './useLangChainTools';
 import { useMessageProcessor } from './chat/useMessageProcessor';
 import { useMessagePersistence } from './chat';
 import { useStreamProcessor } from './chat';
+import { useChatProcessor } from './useChatProcessor';
 import { ProviderFactory } from '@/provider/ProviderFactory';
 import { ModelProviderId } from '@/constants/ModelProviders';
 import { messageDb } from '@/database';
@@ -40,8 +41,13 @@ export function useAIChat(botId: string) {
   
   const {
     handleStreamResponse,
-    isStoppedManuallyRef
+    isStoppedManuallyRef: streamStoppedRef
   } = useStreamProcessor(botId, scheduleUiUpdate);
+  
+  const {
+    processNonStreamResponse,
+    isStoppedManuallyRef: nonStreamStoppedRef
+  } = useChatProcessor(botId, scheduleUiUpdate);
   
   // 更新 isGenerating 状态时，同时更新 ref
   useEffect(() => {
@@ -65,7 +71,8 @@ export function useAIChat(botId: string) {
         console.log('开始发送消息流程，用户消息:', userMessage);
         
         // 在开始新对话前重置手动停止标记
-        isStoppedManuallyRef.current = false;
+        streamStoppedRef.current = false;
+        nonStreamStoppedRef.current = false;
         
         const botInfo = getBotInfo(botId);
         if (!botInfo) {
@@ -168,11 +175,9 @@ export function useAIChat(botId: string) {
               userMsg, 
               assistantMessage, 
               isGeneratingRef,
-              onUpdate
+              onUpdate,
+              modelProvider
             );
-            console.log('流式响应生成完成:', finalAssistantMessage.id);
-            console.log('流式响应内容:', finalAssistantMessage.toolCalls);
-            
             // 额外确保最终消息也被传递给UI，增加延迟确保UI更新
             setTimeout(() => {
               console.log('Final update to UI with completed message');
@@ -183,35 +188,30 @@ export function useAIChat(botId: string) {
             throw streamError;
           }
         } else {
-          // 非流式输出处理
+          // 非流式输出处理 - 使用专门的处理器
           console.log('开始非流式生成响应...');
-          const response = await modelProvider.chat(langchainMessages);
-          console.log(`获取到非流式响应: ${response.length} 字符`);
-
-          // 保存完整响应到数据库
           try {
-            await messageDb.updateMessageContent(
-              assistantMessage.id, 
-              response, 
-              'sent', 
-              'markdown'
+            // 获取完整响应
+            const response = await modelProvider.chat(langchainMessages);
+            const finalAssistantMessage = await processNonStreamResponse(
+              response,
+              userMsg,
+              assistantMessage,
+              onUpdate,
+              modelProvider
             );
-            console.log('非流式响应已保存到数据库');
-          } catch (err) {
-            console.error('保存非流式响应失败:', err);
+            
+            console.log('非流式响应处理完成:', finalAssistantMessage.id);
+            console.log('非流式响应工具调用信息:', finalAssistantMessage.toolCalls);
+            
+            // 确保UI最终更新
+            setTimeout(() => {
+              onUpdate([userMsg, finalAssistantMessage]);
+            }, 200);
+          } catch (error) {
+            console.error('非流式响应处理错误:', error);
+            throw error;
           }
-          
-          // 更新助手消息
-          const updatedAssistantMessage: Message = {
-            ...assistantMessage,
-            content: response,
-            contentType: 'markdown' as ContentType,
-            status: 'sent'
-          };
-          
-          // 更新 UI - 确保使用正确的用户消息
-          console.log('更新UI显示非流式响应');
-          onUpdate([userMsg, updatedAssistantMessage]);
         }
         
         return true;
@@ -229,7 +229,8 @@ export function useAIChat(botId: string) {
         // 重置生成状态和中止控制器
         setIsGenerating(false);
         isGeneratingRef.current = false;
-        isStoppedManuallyRef.current = false;
+        streamStoppedRef.current = false;
+        nonStreamStoppedRef.current = false;
         setAbortController(null);
         clearUpdateInterval();
       }
@@ -244,7 +245,8 @@ export function useAIChat(botId: string) {
       prepareSystemPrompt, 
       prepareLangChainMessages, 
       loadEnabledTools,
-      isStoppedManuallyRef,
+      streamStoppedRef,
+      nonStreamStoppedRef,
       clearUpdateInterval
     ]
   );
@@ -254,17 +256,19 @@ export function useAIChat(botId: string) {
     // 如果当前正在生成，并且要设置为非生成状态（即停止生成）
     if (isGeneratingRef.current && !state) {
       console.log('检测到生成被手动停止，将保存当前已生成内容');
-      isStoppedManuallyRef.current = true;
+      streamStoppedRef.current = true;
+      nonStreamStoppedRef.current = true;
     }
     
     setIsGenerating(state);
     isGeneratingRef.current = state;
-  }, [isStoppedManuallyRef]);
+  }, [streamStoppedRef, nonStreamStoppedRef]);
 
   // 增加一个函数用于停止生成，确保在停止时保存内容
   const stopGeneration = useCallback(() => {
     console.log('用户请求停止生成');
-    isStoppedManuallyRef.current = true;
+    streamStoppedRef.current = true;
+    nonStreamStoppedRef.current = true;
     
     if (abortController) {
       abortController.abort();
@@ -272,7 +276,7 @@ export function useAIChat(botId: string) {
     
     setIsGenerating(false);
     isGeneratingRef.current = false;
-  }, [abortController, isStoppedManuallyRef]);
+  }, [abortController, streamStoppedRef, nonStreamStoppedRef]);
 
   return {
     sendMessage,

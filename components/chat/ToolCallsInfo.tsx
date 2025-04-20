@@ -3,9 +3,10 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { IconSymbol } from '../ui/IconSymbol';
 import i18n from '@/i18n/i18n';
+import { type ToolCall } from '@langchain/core/dist/messages/tool';
 
 interface ToolCallsInfoProps {
-  toolCalls: any[] | undefined;
+  toolCalls: ToolCall[] | undefined;
   textColor: string;
   tintColor: string;
 }
@@ -25,7 +26,7 @@ const ToolCallsInfo: FC<ToolCallsInfoProps> = ({ toolCalls, textColor, tintColor
         </ThemedText>
         <IconSymbol 
           name={expanded ? "chevron-up" : "chevron-down"} 
-          type="material" 
+          type="fontAwesome" 
           size={14} 
           color={textColor} 
         />
@@ -36,11 +37,11 @@ const ToolCallsInfo: FC<ToolCallsInfoProps> = ({ toolCalls, textColor, tintColor
           {toolCalls.map((tool, index) => (
             <View key={index} style={styles.toolCallItem}>
               <ThemedText style={[styles.toolName, { color: tintColor }]}>
-                {tool.name || tool.function?.name || `${i18n.t('chat.toolDefault')}${index + 1}`}
+                {tool.name || tool.name || `${i18n.t('chat.toolDefault')}${index + 1}`}
               </ThemedText>
               <ThemedText style={[styles.toolDescription, { color: textColor }]} numberOfLines={3}>
-                {JSON.stringify(tool.arguments || tool.function?.arguments || {}).substring(0, 100)}
-                {(JSON.stringify(tool.arguments || tool.function?.arguments || {}).length > 100) ? '...' : ''}
+                {JSON.stringify(tool.args).substring(0, 100)}
+                {(JSON.stringify(tool.args || {}).length > 100) ? '...' : ''}
               </ThemedText>
             </View>
           ))}

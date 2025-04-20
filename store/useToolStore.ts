@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_TOOLS, ToolDefinition } from '@/langchain/tools';
+import { DEFAULT_TOOLS, ToolDefinition, parametersToZodSchema } from '@/langchain/tools';
 
 interface ToolStore {
   tools: ToolDefinition[];
@@ -15,14 +15,6 @@ interface ToolStore {
 // 验证工具函数字符串是否符合预期格式
 const validateFunctionString = (funcStr: string): { valid: boolean, error?: string } => {
   try {
-    // 检查函数结构是箭头函数，并且使用了解构参数
-    if (!funcStr.includes('=>')) {
-      return { 
-        valid: false, 
-        error: '函数必须是箭头函数，例如: ({ param1, param2 }) => { ... }' 
-      };
-    }
-
     // 尝试创建函数来验证语法
     new Function('input', `
       try {
@@ -55,11 +47,15 @@ export const useToolStore = create<ToolStore>()(
           throw new Error(validationResult.error);
         }
         
+        // 使用 parametersToZodSchema 函数生成 schema
+        const schema = parametersToZodSchema(tool.parameters);
+        
         set((state) => ({
           tools: [
             ...state.tools,
             {
               ...tool,
+              schema, // 添加生成的 schema
               id: `tool_${Date.now()}`,
               createdAt: Date.now(),
               updatedAt: Date.now(),

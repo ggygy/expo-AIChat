@@ -22,6 +22,8 @@ export const en = {
     new: "New",
     edit: "Edit",
     micPermissionDenied: "Microphone permission denied. Please enable it in settings.",
+    warning: 'Warning',
+    ok: 'OK',
   },
   tabs: {
     home: 'Home',
@@ -188,6 +190,7 @@ export const en = {
     inference: 'Inference',
     multimodal: 'Multimodal',
     audio: 'Audio',
+    tool: 'Tool',
   },
   version: {
     description: 'AI Chat is a conversational application powered by artificial intelligence, supporting multiple AI models and conversation modes.',
@@ -240,6 +243,9 @@ export const en = {
     notFound: 'Assistant not found',
     updateSuccess: 'Assistant updated successfully',
     systemPrompt: 'System Prompt',
+    modelToolsNotSupported: 'The current model does not support tools functionality',
+    selectToolsToUse: 'Select tools for AI to use',
+    selectTools: 'Enable Tools',
   },
   explore: {
     title: "Explore",

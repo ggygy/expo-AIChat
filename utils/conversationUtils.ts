@@ -6,30 +6,35 @@ import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/
  * @returns 过滤后的消息列表，包含系统消息和最后一条人类消息
  */
 export function getLastConversationTurn(messages: BaseMessage[]): BaseMessage[] {
-  // 如果消息少于3条，直接返回全部
-  if (messages.length <= 3) {
-    return messages;
-  }
-
-  // 获取系统消息和最后一条人类消息
+  // 获取所有系统消息
   const systemMessages = messages.filter(m => m instanceof SystemMessage);
+  console.log(`找到系统消息数量: ${systemMessages.length}`);
   
-  // 找到最后一条人类消息的索引
-  let lastHumanIndex = -1;
+  // 找到最后一条人类消息
+  let lastHumanMessage: HumanMessage | null = null;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i] instanceof HumanMessage) {
-      lastHumanIndex = i;
+      lastHumanMessage = messages[i] as HumanMessage;
       break;
     }
   }
   
-  if (lastHumanIndex === -1) {
-    // 如果没有人类消息，返回系统消息
+  if (!lastHumanMessage) {
+    console.log("没有找到人类消息，只返回系统消息");
     return systemMessages;
   }
   
-  // 只保留系统消息和最后一条人类消息
-  return [...systemMessages, messages[lastHumanIndex]];
+  // 构建最终消息列表：系统消息 + 最后一条人类消息
+  const finalMessages = [...systemMessages, lastHumanMessage];
+  
+  // 验证没有AI消息
+  const aiMessages = finalMessages.filter(m => m instanceof AIMessage);
+  if (aiMessages.length > 0) {
+    console.warn("警告：过滤后的消息中仍包含AI消息，将被移除");
+    return finalMessages.filter(m => !(m instanceof AIMessage));
+  }
+  
+  return finalMessages;
 }
 
 /**

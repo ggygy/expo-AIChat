@@ -1,4 +1,4 @@
-export type ModelType = 'chat' | 'image' | 'audio' | 'embedding' | 'inference' | 'multimodal';
+export type ModelType = 'chat' | 'image' | 'audio' | 'embedding' | 'inference' | 'multimodal' | 'tool';
 
 export interface ModelTypeInfo {
   id: ModelType;
@@ -12,5 +12,6 @@ export const MODEL_TYPES: ModelTypeInfo[] = [
   { id: 'embedding', labelKey: 'modelTypes.embedding', color: '#FF9800' },
   { id: 'inference', labelKey: 'modelTypes.inference', color: '#9C27B0' },
   { id: 'multimodal', labelKey: 'modelTypes.multimodal', color: '#FF5722' },
-  { id: 'audio', labelKey: 'modelTypes.audio', color: '#FF5722' },
+  { id: 'audio', labelKey: 'modelTypes.audio', color: '#1A4853' },
+  { id: 'tool', labelKey: 'modelTypes.tool', color: '#1ad02d' },
 ];

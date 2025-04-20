@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { View, StyleSheet, FlatList, Switch } from 'react-native';
+import { View, StyleSheet, FlatList, Switch, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useToolStore } from '@/store/useToolStore';
@@ -7,6 +7,8 @@ import { useBotStore } from '@/store/useBotStore';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import i18n from '@/i18n/i18n';
 import { type ToolDefinition } from '@/langchain/tools';
+import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
+import { useProviderStore } from '@/store/useProviderStore';
 
 interface ToolSelectorProps {
   botId: string;
@@ -18,18 +20,38 @@ const ToolSelector = ({ botId }: ToolSelectorProps) => {
   
   const botInfo = getBotInfo(botId);
   const [enabledToolIds, setEnabledToolIds] = useState<string[]>(botInfo?.enabledToolIds || []);
+  const [modelSupportsTools, setModelSupportsTools] = useState<boolean>(false);
   
   // 颜色主题
   const cardBgColor = useThemeColor({}, 'settingItemBackground');
   const secondaryTextColor = useThemeColor({}, 'secondaryText');
   const borderColor = useThemeColor({}, 'border');
   
-  // 初始化状态
+  // 初始化状态并检查模型是否支持工具
   useEffect(() => {
     setEnabledToolIds(botInfo?.enabledToolIds || []);
+    
+    // 检查模型是否支持工具功能
+    if (botInfo) {
+      const provider = MODEL_PROVIDERS.find(p => p.id === botInfo.providerId);
+      if (provider) {
+        const model = provider.availableModels.find(m => m.id === botInfo.modelId);
+        setModelSupportsTools(!!model?.supportTools);
+      }
+    }
   }, [botInfo]);
   
   const toggleTool = (id: string) => {
+    // 检查是否支持工具功能
+    if (!modelSupportsTools) {
+      Alert.alert(
+        i18n.t('common.warning'),
+        i18n.t('bot.modelToolsNotSupported'),
+        [{ text: i18n.t('common.ok'), style: 'default' }]
+      );
+      return;
+    }
+    
     const updatedToolIds = enabledToolIds.includes(id)
       ? enabledToolIds.filter(toolId => toolId !== id)
       : [...enabledToolIds, id];
@@ -57,6 +79,7 @@ const ToolSelector = ({ botId }: ToolSelectorProps) => {
         <Switch
           value={isEnabled}
           onValueChange={() => toggleTool(item.id)}
+          disabled={!modelSupportsTools}
         />
       </ThemedView>
     );
@@ -64,6 +87,13 @@ const ToolSelector = ({ botId }: ToolSelectorProps) => {
   
   return (
     <View style={styles.container}>
+      {!modelSupportsTools && (
+        <ThemedView style={[styles.warningBanner, { backgroundColor: '#FFF3CD' }]}>
+          <ThemedText style={styles.warningText}>
+            {i18n.t('bot.modelToolsNotSupported')}
+          </ThemedText>
+        </ThemedView>
+      )}
       <FlatList
         data={tools}
         renderItem={renderItem}
@@ -114,6 +144,16 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 14,
   },
+  warningBanner: {
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  warningText: {
+    color: '#664D03',
+    fontSize: 12,
+    textAlign: 'center',
+  }
 });
 
 export default memo(ToolSelector);

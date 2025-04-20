@@ -50,6 +50,7 @@ export const messageDb = {
           await database.runAsync(
             `INSERT INTO messages (id, chatId, role, content, timestamp, contentType, messageType, status, error)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
             [
               message.id,
               chatId,
@@ -68,6 +69,7 @@ export const messageDb = {
           await database.runAsync(
             `INSERT INTO messages (id, chatId, role, content, timestamp, contentType, status, error)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+
             [
               message.id,
               chatId,
@@ -110,6 +112,9 @@ export const messageDb = {
       // 先检查列是否存在
       const hasTokenUsage = await columnExists(database, 'messages', 'token_usage');
       const hasThinkingContent = await columnExists(database, 'messages', 'thinking_content');
+      const hasToolCalls = await columnExists(database, 'messages', 'tool_calls');
+      const hasInvalidToolCalls = await columnExists(database, 'messages', 'invalid_tool_calls');
+      const hasMetadata = await columnExists(database, 'messages', 'metadata');
       
       // 根据列的存在情况构建查询
       let query = `
@@ -122,6 +127,18 @@ export const messageDb = {
       
       if (hasThinkingContent) {
         query += `, thinking_content`;
+      }
+      
+      if (hasToolCalls) {
+        query += `, tool_calls`;
+      }
+      
+      if (hasInvalidToolCalls) {
+        query += `, invalid_tool_calls`;
+      }
+      
+      if (hasMetadata) {
+        query += `, metadata`;
       }
       
       query += ` FROM messages
@@ -156,11 +173,44 @@ export const messageDb = {
             }
           }
           
+          // 解析工具调用信息
+          let toolCalls = undefined;
+          if (hasToolCalls && msg.tool_calls) {
+            try {
+              toolCalls = JSON.parse(msg.tool_calls);
+            } catch (error) {
+              console.warn(`解析消息 ${msg.id} 的tool_calls失败:`, error);
+            }
+          }
+          
+          // 解析无效工具调用信息
+          let invalidToolCalls = undefined;
+          if (hasInvalidToolCalls && msg.invalid_tool_calls) {
+            try {
+              invalidToolCalls = JSON.parse(msg.invalid_tool_calls);
+            } catch (error) {
+              console.warn(`解析消息 ${msg.id} 的invalid_tool_calls失败:`, error);
+            }
+          }
+          
+          // 解析其他元数据
+          let metadata = undefined;
+          if (hasMetadata && msg.metadata) {
+            try {
+              metadata = JSON.parse(msg.metadata);
+            } catch (error) {
+              console.warn(`解析消息 ${msg.id} 的metadata失败:`, error);
+            }
+          }
+          
           // 构造标准消息对象
           const message: Message = {
             ...msg,
             role: msg.role as 'user' | 'assistant' | 'system',
-            tokenUsage: tokenUsage
+            tokenUsage: tokenUsage,
+            toolCalls: toolCalls,
+            invalidToolCalls: invalidToolCalls,
+            metadata: metadata
           };
           
           // 仅当列存在且值不为空时添加思考内容
@@ -175,6 +225,15 @@ export const messageDb = {
           }
           if (hasTokenUsage) {
             delete (message as any).token_usage;
+          }
+          if (hasToolCalls) {
+            delete (message as any).tool_calls;
+          }
+          if (hasInvalidToolCalls) {
+            delete (message as any).invalid_tool_calls;
+          }
+          if (hasMetadata) {
+            delete (message as any).metadata;
           }
           
           return message;

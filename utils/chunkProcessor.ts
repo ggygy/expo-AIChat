@@ -70,7 +70,6 @@ export function processChunk(
     if (usage.total_tokens) totalTokens = usage.total_tokens;
     if (usage.prompt_tokens) promptTokens = usage.prompt_tokens;
     if (usage.completion_tokens) completionTokens = usage.completion_tokens;
-    console.log('从response_metadata.usage提取token信息:', totalTokens);
   }
   
   // 2. 尝试从usage_metadata中提取
@@ -87,7 +86,6 @@ export function processChunk(
         output: usage.output_token_details
       };
     }
-    console.log('从usage_metadata提取token信息:', totalTokens);
   }
   
   // 3. 尝试从kwargs.usage_metadata中提取
@@ -96,25 +94,20 @@ export function processChunk(
     if (usage.total_tokens) totalTokens = usage.total_tokens;
     if (usage.input_tokens) promptTokens = usage.input_tokens;
     if (usage.output_tokens) completionTokens = usage.output_tokens;
-    console.log('从kwargs.usage_metadata提取token信息:', totalTokens);
   }
   
   // 提取工具调用信息
   if (chunk.tool_calls && Array.isArray(chunk.tool_calls)) {
     toolCalls = chunk.tool_calls;
-    console.log('提取工具调用:', toolCalls.length);
   } else if (chunk.kwargs?.tool_calls && Array.isArray(chunk.kwargs.tool_calls)) {
     toolCalls = chunk.kwargs.tool_calls;
-    console.log('从kwargs提取工具调用:', toolCalls.length);
   }
   
   // 提取无效工具调用
   if (chunk.invalid_tool_calls && Array.isArray(chunk.invalid_tool_calls)) {
     invalidToolCalls = chunk.invalid_tool_calls;
-    console.log('提取无效工具调用:', invalidToolCalls.length);
   } else if (chunk.kwargs?.invalid_tool_calls && Array.isArray(chunk.kwargs.invalid_tool_calls)) {
     invalidToolCalls = chunk.kwargs.invalid_tool_calls;
-    console.log('从kwargs提取无效工具调用:', invalidToolCalls.length);
   }
   
   // 处理常规内容
@@ -129,25 +122,21 @@ export function processChunk(
   if (chunk.additional_kwargs?.reasoning_content) {
     chunkType = 'thinking';
     chunkThinking = chunk.additional_kwargs.reasoning_content;
-    console.log('检测到推理内容(reasoning_content):', chunkThinking?.substring(0, 20) + '...');
   } 
   // 2. additional_kwargs.thinking
   else if (chunk.additional_kwargs?.thinking) {
     chunkType = 'thinking';
     chunkThinking = chunk.additional_kwargs.thinking;
-    console.log('检测到推理内容(thinking):', chunkThinking?.substring(0, 20) + '...');
   }
   // 3. reasoning 字段
   else if (chunk.reasoning || (chunk.content && chunk.content.reasoning)) {
     chunkType = 'thinking';
     chunkThinking = chunk.reasoning || chunk.content.reasoning;
-    console.log('检测到推理内容(reasoning):', chunkThinking?.substring(0, 20) + '...');
   }
   // 4. kwargs.additional_kwargs 中寻找思考内容
   else if (chunk.kwargs?.additional_kwargs?.reasoning_content) {
     chunkType = 'thinking';
     chunkThinking = chunk.kwargs.additional_kwargs.reasoning_content;
-    console.log('从kwargs检测到推理内容:', chunkThinking?.substring(0, 20) + '...');
   }
   
   // 更新内容，将新块追加到现有内容
@@ -176,7 +165,6 @@ export function processChunk(
       if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
         thinkingContent = content.substring(startIdx, endIdx + pattern.end.length);
         content = content.substring(0, startIdx) + content.substring(endIdx + pattern.end.length);
-        console.log('从内容中提取思考过程:', thinkingContent.substring(0, 20) + '...');
         break;
       }
     }

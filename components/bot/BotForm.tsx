@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, View, Switch } from 'react-native';
+import { StyleSheet, ScrollView, View, Switch, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { ThemedView } from '@/components/ThemedView';
 import { Input } from '@/components/ui/Input';
@@ -9,6 +9,7 @@ import { ValueSlider } from '@/components/ui/ValueSlider';
 import { usePromptStore } from '@/store/usePromptStore';
 import { useToolStore } from '@/store/useToolStore';
 import i18n from '@/i18n/i18n';
+import { MODEL_PROVIDERS } from '@/constants/ModelProviders';
 
 export interface BotFormData {
   name: string;
@@ -60,6 +61,7 @@ export function BotForm({
   const [enabledToolIds, setEnabledToolIds] = useState<string[]>(initialData?.enabledToolIds || []);
   
   const [modelItems, setModelItems] = useState<Array<{ label: string; value: string }>>([]);
+  const [currentModelSupportsTools, setCurrentModelSupportsTools] = useState<boolean>(false);
   
   // 获取模板和工具
   const { templates } = usePromptStore();
@@ -100,6 +102,15 @@ export function BotForm({
 
   // 处理工具选择
   const handleToolToggle = (toolId: string) => {
+    if (!currentModelSupportsTools) {
+      Alert.alert(
+        i18n.t('common.warning'),
+        i18n.t('bot.modelToolsNotSupported'),
+        [{ text: i18n.t('common.ok'), style: 'default' }]
+      );
+      return;
+    }
+    
     setEnabledToolIds(prev => 
       prev.includes(toolId)
         ? prev.filter(id => id !== toolId)
@@ -107,12 +118,51 @@ export function BotForm({
     );
   };
 
-  // 初始化时设置模型列表
+  // 处理模型变化，检查模型是否支持工具
+  const handleModelChange = (modelId: string) => {
+    setSelectedModelId(modelId);
+    
+    // 检查模型是否支持工具功能
+    if (selectedProviderId && modelId) {
+      const provider = MODEL_PROVIDERS.find(p => p.id === selectedProviderId);
+      if (provider) {
+        const model = provider.availableModels.find(m => m.id === modelId);
+        const supportsTools = !!model?.supportTools;
+        setCurrentModelSupportsTools(supportsTools);
+        
+        // 如果切换到不支持工具的模型，清空已启用的工具
+        if (!supportsTools && enabledToolIds.length > 0) {
+          Alert.alert(
+            i18n.t('common.warning'),
+            i18n.t('bot.modelToolsNotSupported'),
+            [
+              { 
+                text: i18n.t('common.ok'), 
+                onPress: () => setEnabledToolIds([])
+              }
+            ]
+          );
+        }
+      }
+    }
+  };
+
+  // 初始化时设置模型列表并检查工具支持
   useEffect(() => {
     if (initialData?.providerId) {
-      setModelItems(onProviderChange(initialData.providerId));
+      const models = onProviderChange(initialData.providerId);
+      setModelItems(models);
+      
+      // 如果有初始模型，检查其是否支持工具
+      if (initialData.modelId) {
+        const provider = MODEL_PROVIDERS.find(p => p.id === initialData.providerId);
+        if (provider) {
+          const model = provider.availableModels.find(m => m.id === initialData.modelId);
+          setCurrentModelSupportsTools(!!model?.supportTools);
+        }
+      }
     }
-  }, [initialData?.providerId, onProviderChange]);
+  }, [initialData?.providerId, initialData?.modelId, onProviderChange]);
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -145,7 +195,7 @@ export function BotForm({
           <ThemedText style={styles.label}>{i18n.t('bot.model')}</ThemedText>
           <Picker
             selectedValue={selectedModelId}
-            onValueChange={setSelectedModelId}
+            onValueChange={handleModelChange}
             items={modelItems}
             enabled={!isSubmitting && !!selectedProviderId}
             placeholder={i18n.t('bot.selectModel')}
@@ -170,14 +220,15 @@ export function BotForm({
           <ThemedText style={styles.hint}>选择一个预设的提示词模板，或使用自定义系统提示词</ThemedText>
         </ThemedView>
 
-        {/* 工具选择 */}
+        {/* 工具选择区域 */}
         <ThemedView style={styles.toolsContainer}>
-          <ThemedText style={styles.label}>启用工具</ThemedText>
+          <ThemedText style={styles.label}>{i18n.t('bot.selectTools')}</ThemedText>
           {tools.map(tool => (
             <View key={tool.id} style={styles.toolItem}>
               <Switch 
                 value={enabledToolIds.includes(tool.id)}
                 onValueChange={() => handleToolToggle(tool.id)}
+                disabled={!currentModelSupportsTools}
               />
               <View style={styles.toolInfo}>
                 <ThemedText style={styles.toolName}>{tool.name}</ThemedText>
@@ -185,7 +236,11 @@ export function BotForm({
               </View>
             </View>
           ))}
-          <ThemedText style={styles.hint}>选择要允许AI使用的工具</ThemedText>
+          <ThemedText style={styles.hint}>
+            {currentModelSupportsTools 
+              ? i18n.t('bot.selectToolsToUse')
+              : i18n.t('bot.modelToolsNotSupported')}
+          </ThemedText>
         </ThemedView>
 
         <ValueSlider

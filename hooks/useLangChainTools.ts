@@ -27,6 +27,7 @@ export function useLangChainTools(botId: string) {
     if (!botInfo) return '';
     
     let finalSystemPrompt = botInfo.systemPrompt || '';
+    let hasProcessedUserInput = false;
     
     // 如果设置了提示词模板ID，则应用提示词模板
     if (botInfo.promptTemplateId) {
@@ -41,6 +42,7 @@ export function useLangChainTools(botId: string) {
             // 为每个变量提供一个默认值，优先使用userMessage.content作为input
             if (variable === 'input') {
               defaultVariables[variable] = userMessage.content;
+              hasProcessedUserInput = true;
             } else {
               defaultVariables[variable] = '';
             }
@@ -55,6 +57,16 @@ export function useLangChainTools(botId: string) {
           // 如果模板渲染失败，回退到系统提示
         }
       }
+    }
+    
+    // 如果没有通过模板处理用户输入，在这里手动处理
+    if (!hasProcessedUserInput && userMessage.content) {
+      // 如果系统提示为空，直接使用用户输入
+      if (!finalSystemPrompt) {
+        finalSystemPrompt = userMessage.content;
+      } 
+      // 否则根据需要考虑是否要在这里添加用户输入
+      // 可以选择不添加，因为用户输入已经在聊天历史中包含
     }
     
     // 使用enhanceSystemPrompt增强系统提示
@@ -75,27 +87,28 @@ export function useLangChainTools(botId: string) {
     // 确保消息按时间顺序排序
     chatHistory.sort((a, b) => a.timestamp - b.timestamp);
     
-    // 转换消息为Langchain消息格式
-    const langchainMessages = chatHistory.map(msg => {
-      switch (msg.role) {
-        case 'user':
-          return new HumanMessage({ content: msg.content });
-        case 'assistant':
-          return new AIMessage({ content: msg.content });
-        case 'system':
-          return new SystemMessage({ content: msg.content });
-        default:
-          return new HumanMessage({ content: msg.content });
-      }
-    });
+    // 转换消息为Langchain消息格式，排除系统消息
+    const langchainMessages = chatHistory
+      .filter(msg => msg.role !== 'system') // 排除系统消息，我们会单独处理
+      .map(msg => {
+        switch (msg.role) {
+          case 'user':
+            return new HumanMessage({ content: msg.content });
+          case 'assistant':
+            return new AIMessage({ content: msg.content });
+          default:
+            return new HumanMessage({ content: msg.content });
+        }
+      });
     
-    // 如果系统提示存在且历史消息中没有系统消息，则添加
-    if (systemPrompt && !langchainMessages.some(msg => msg instanceof SystemMessage)) {
-      const systemMessage = new SystemMessage({ content: systemPrompt });
-      langchainMessages.unshift(systemMessage);
+    // 如果提供了系统提示，则在消息数组最后面添加系统提示
+    const finalMessages = [...langchainMessages];
+    if (systemPrompt) {
+      // 将系统提示放在最后面
+      finalMessages.push(new HumanMessage({ content: systemPrompt }));
     }
     
-    return langchainMessages;
+    return finalMessages;
   }, []);
 
   /**

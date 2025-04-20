@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { usePromptStore } from '@/store/usePromptStore';
 import { parseTemplateVariables } from '@/langchain/prompt';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { CodeEditor } from '@/components/ui/CodeEditor';
 import i18n from '@/i18n/i18n';
 
 export default function PromptEditorScreen() {
@@ -126,17 +127,16 @@ export default function PromptEditorScreen() {
           editable={!isSystemTemplate}
         />
 
-        <Input 
-          label={i18n.t('explore.template')}
-          value={template}
-          onChangeText={setTemplate}
-          multiline
-          numberOfLines={10}
-          textAlignVertical="top"
-          style={styles.templateInput}
-          placeholder={i18n.t('explore.templatePlaceholder')}
-          editable={!isSystemTemplate}
-        />
+        <ThemedView style={styles.codeSection}>
+          <CodeEditor 
+            label={i18n.t('explore.template')}
+            value={template}
+            onChangeText={setTemplate}
+            placeholder={i18n.t('explore.templatePlaceholder')}
+            editable={!isSystemTemplate}
+            minHeight={250}
+          />
+        </ThemedView>
 
         {variables.length > 0 && (
           <ThemedView style={styles.variablesContainer}>
@@ -195,6 +195,7 @@ export default function PromptEditorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: 90,
   },
   contentContainer: {
     padding: 16,
@@ -202,9 +203,8 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
-  templateInput: {
-    height: 200,
-    paddingTop: 12,
+  codeSection: {
+    gap: 4,
   },
   variablesContainer: {
     padding: 16,

@@ -38,11 +38,7 @@ export class DeepseekProvider extends BaseProvider {
     
     // 使用addTools方法绑定工具
     if (config.tools && config.tools.length > 0) {
-      console.log(`DeepSeek Provider 绑定工具，数量: ${config.tools.length}`);
-      console.log(`工具名称: ${config.tools.map(t => t.name).join(', ')}`);
-      console.log('工具列表:', JSON.stringify(config.tools));
-      
-      
+
       try {
           // 直接使用模型的bindTools方法，简化工具绑定过程
           this.llmWithTools = model.bindTools(config.tools);

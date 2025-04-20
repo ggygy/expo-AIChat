@@ -22,6 +22,7 @@ export interface ModelInfo {
   id: string;
   name: string;
   types: ModelType[];
+  supportTools?: boolean; // 添加支持工具标记
 }
 
 export interface ModelProvider {
@@ -49,8 +50,8 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     baseUrl: 'https://api.deepseek.com/v1',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     availableModels: [
-      { id: 'deepseek-chat', name: 'deepseek V3', types: ['chat'] },
-      { id: 'deepseek-reasoner', name: 'deepseek R1', types: ['chat', 'inference'] },
+      { id: 'deepseek-chat', name: 'deepseek V3', types: ['chat'], supportTools: true },
+      { id: 'deepseek-reasoner', name: 'deepseek R1', types: ['chat', 'inference'], supportTools: true },
     ],
   },
   {
@@ -79,10 +80,10 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     apiKeyUrl: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
     availableModels: [
-      { id: 'qwq-32b', name: 'QWQ 32b', types: ['chat', 'inference'] },
-      { id: 'qwen-max', name: 'QWen Max', types: ['chat'] },
-      { id: 'qwen-plus', name: 'QWen Plus', types: ['chat'] },
-      { id: 'qwen-turbo', name: 'QWen Turbo', types: ['chat'] },
+      { id: 'qwq-32b', name: 'QWQ 32b', types: ['chat', 'inference'], supportTools: true },
+      { id: 'qwen-max', name: 'QWen Max', types: ['chat'], supportTools: true },
+      { id: 'qwen-plus', name: 'QWen Plus', types: ['chat'], supportTools: true },
+      { id: 'qwen-turbo', name: 'QWen Turbo', types: ['chat'], supportTools: true },
       { id: 'qwen-long', name: 'QWen longcontext', types: ['chat'] },
     ],
   },
@@ -93,10 +94,10 @@ export const MODEL_PROVIDERS: ModelProvider[] = [
     baseUrl: 'https://api.anthropic.com/v1/messages',
     apiKeyUrl: 'https://console.anthropic.com/api-keys',
     availableModels: [
-      { id: 'claude-3-7-sonnet@20250219', name: 'claude 3.7 sonnet', types: ['chat'] },
-      { id: 'claude-3-5-sonnet-20241022', name: 'claude 3.5 sonnet', types: ['chat'] },
-      { id: 'claude-3-5-haiku-20241022', name: 'claude 3.5 haiku', types: ['chat'] },
-      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 sonnet', types: ['chat'] },
+      { id: 'claude-3-7-sonnet@20250219', name: 'claude 3.7 sonnet', types: ['chat'], supportTools: true },
+      { id: 'claude-3-5-sonnet-20241022', name: 'claude 3.5 sonnet', types: ['chat'], supportTools: true },
+      { id: 'claude-3-5-haiku-20241022', name: 'claude 3.5 haiku', types: ['chat'], supportTools: true },
+      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 sonnet', types: ['chat'], supportTools: true },
     ],
   },
   {
