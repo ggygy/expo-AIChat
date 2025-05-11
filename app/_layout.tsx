@@ -7,7 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import 'react-native-reanimated';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -27,6 +27,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const currentLanguage = useLanguageStore((state) => state.currentLanguage);
   const themeMode = useThemeStore((state) => state.themeMode);
   const [loaded, setLoaded] = useFonts({
@@ -49,6 +50,12 @@ export default function RootLayout() {
     headerShown: true,
     headerTransparent: true,
     animationDuration: 300,
+    safeAreaInsets: {
+      top: insets.top, // 状态栏高度
+      right: 0,
+      bottom: 0,
+      left: 0
+    },
     headerStyle: {
       backgroundColor: backgroundColor,
     },
@@ -64,7 +71,7 @@ export default function RootLayout() {
     },
     headerBackTitleVisible: false,
     headerShadowVisible: false,
-  }), [currentTheme]);
+  }), [currentTheme, insets]);
 
   useEffect(() => {
     async function initialize() {
@@ -91,50 +98,49 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={currentTheme}>
-        <GestureHandlerRootView style={styles.container}>
-          <ThemedView style={{ flex: 1 }}>
-            <Stack screenOptions={screenOptions}>
-              <Stack.Screen
-                name="(tabs)"
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="providerConfig"
-                options={{
-                  animation: 'slide_from_right',
-                  title: i18n.t('settings.aiConfig.title'),
-                }}
-              />
-              <Stack.Screen
-                name="version"
-                options={{
-                  animation: 'slide_from_right',
-                  title: i18n.t('settings.about.version'),
-                }}
-              />
-              <Stack.Screen
-                name="newBot"
-                options={{
-                  animation: 'slide_from_right',
-                  title: i18n.t('bot.create'),
-                }}
-              />
-              <Stack.Screen
-                name="editBot/[botId]"
-                options={{
-                  animation: 'slide_from_right',
-                  title: i18n.t('bot.edit'),
-                }}
-              />
-              <Stack.Screen
-                name="chat/[id]"
-                options={{
-                  animation: 'slide_from_right',
-                }}
-              />
-              <Stack.Screen
+        <GestureHandlerRootView style={[styles.container, { backgroundColor }]}>
+          <Stack screenOptions={screenOptions}>
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="providerConfig"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.aiConfig.title'),
+              }}
+            />
+            <Stack.Screen
+              name="version"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('settings.about.version'),
+              }}
+            />
+            <Stack.Screen
+              name="newBot"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('bot.create'),
+              }}
+            />
+            <Stack.Screen
+              name="editBot/[botId]"
+              options={{
+                animation: 'slide_from_right',
+                title: i18n.t('bot.edit'),
+              }}
+            />
+            <Stack.Screen
+              name="chat/[id]"
+              options={{
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
               name="explores/toolEditor"
               options={{
                 animation: 'slide_from_right',
@@ -162,14 +168,13 @@ export default function RootLayout() {
                 title: i18n.t('settings.aiConfig.title'),
               }}
             />
-            </Stack>
+          </Stack>
 
-            <StatusBar
-              style={colorScheme === 'dark' ? 'light' : 'dark'}
-              backgroundColor={colorScheme === 'dark' ? '#000' : '#fff'}
-              translucent={true}
-            />
-          </ThemedView>
+          <StatusBar
+            style={colorScheme === 'dark' ? 'light' : 'dark'}
+            backgroundColor={colorScheme === 'dark' ? '#000' : '#fff'}
+            translucent={false}
+          />
         </GestureHandlerRootView>
       </ThemeProvider>
       <Toast config={toastConfig} topOffset={50} />

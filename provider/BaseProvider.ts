@@ -1,7 +1,7 @@
 import { AIMessage, AIMessageChunk, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ModelProviderId } from '@/constants/ModelProviders';
-import { IterableReadableStream } from '@langchain/core/dist/utils/stream';
+import { IterableReadableStream } from '@langchain/core/utils/stream';
 import { ToolInterface } from '@langchain/core/tools';
 import { Runnable } from '@langchain/core/runnables';
 import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
@@ -11,7 +11,7 @@ import {
   getLastConversationTurn,
   processMessagesForReasoner
 } from '@/utils/conversationUtils';
-import { type ToolCall } from '@langchain/core/dist/messages/tool';
+import { type ToolCall } from '@langchain/core/messages/tool';
 
 export interface ModelConfig {
   vendor: ModelProviderId;

@@ -3,7 +3,7 @@ import { ContentType, Message } from '@/constants/chat';
 import { messageDb } from '@/database';
 import { processChunk } from '@/utils/chunkProcessor';
 import { IModelProvider } from '@/provider/BaseProvider';
-import { type ToolCall } from '@langchain/core/dist/messages/tool';
+import { type ToolCall } from '@langchain/core/messages/tool';
 
 type MessageStatus = 'sending' | 'streaming' | 'sent' | 'error';
 type MessageUpdateCallback = (messages: Message[]) => void;

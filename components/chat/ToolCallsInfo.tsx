@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '../ThemedText';
 import { IconSymbol } from '../ui/IconSymbol';
 import i18n from '@/i18n/i18n';
-import { type ToolCall } from '@langchain/core/dist/messages/tool';
+import { type ToolCall } from '@langchain/core/messages/tool';
 
 interface ToolCallsInfoProps {
   toolCalls: ToolCall[] | undefined;

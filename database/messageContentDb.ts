@@ -1,4 +1,4 @@
-import { type ToolCall } from '@langchain/core/dist/messages/tool';
+import { type ToolCall } from '@langchain/core/messages/tool';
 import { ensureDb, columnExists, addColumn } from './connection';
 
 /**
